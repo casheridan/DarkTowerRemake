@@ -1,0 +1,55 @@
+.over {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 211, 77, 0.12), rgba(5, 4, 6, 0.92));
+  z-index: 50;
+}
+.over__card {
+  text-align: center;
+  background: linear-gradient(180deg, #241d15, #100d0a);
+  border: 1px solid var(--dt-gold);
+  border-radius: 18px;
+  padding: 2.5rem 2rem;
+  width: min(440px, 92vw);
+  box-shadow: 0 0 60px rgba(255, 211, 77, 0.35);
+}
+.over__crown {
+  font-size: 4rem;
+}
+.over__title {
+  font-size: 3rem;
+  color: var(--dt-gold);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 26px rgba(255, 211, 77, 0.5);
+  margin: 0.3rem 0;
+}
+.over__winner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  color: var(--dt-text);
+}
+.over__crest {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.over__sub {
+  color: var(--dt-text-dim);
+  font-size: 0.85rem;
+  margin: 0.6rem 0 1.4rem;
+}
+.over__again {
+  padding: 0.8rem 1.6rem;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--dt-font-display);
+  font-size: 1.1rem;
+  color: #1a1206;
+  background: linear-gradient(180deg, var(--dt-amber-glow), var(--dt-amber));
+  box-shadow: 0 8px 24px rgba(255, 176, 46, 0.35);
+}

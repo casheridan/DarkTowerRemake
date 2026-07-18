@@ -1,0 +1,95 @@
+.hud {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.hud__card {
+  background: linear-gradient(180deg, #1c1813, #14110d);
+  border: 1px solid var(--dt-chassis-edge);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  transform-origin: left center;
+}
+.hud__card--active {
+  border-color: var(--dt-gold);
+  box-shadow: 0 0 18px rgba(255, 211, 77, 0.22);
+}
+.hud__card--dead {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.hud__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.hud__crest {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.4);
+}
+.hud__name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+}
+.hud__won {
+  margin-left: auto;
+}
+
+.hud__stats {
+  display: flex;
+  gap: 0.4rem;
+}
+.hud__stat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: #0f0c09;
+  border-radius: 8px;
+  padding: 0.35rem 0.2rem;
+}
+.hud__stat-icon {
+  font-size: 0.95rem;
+}
+.hud__stat-val {
+  font-family: var(--dt-font-led);
+  font-weight: 700;
+  font-size: 1.05rem;
+  min-width: 1.4ch;
+  text-align: right;
+}
+
+.hud__items {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.55rem;
+  min-height: 1.4rem;
+}
+.hud__key {
+  font-size: 1rem;
+  opacity: 0.22;
+  filter: grayscale(1);
+  transition: all 0.2s;
+}
+.hud__key--have {
+  opacity: 1;
+  filter: none;
+  text-shadow: 0 0 8px currentColor;
+}
+.hud__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--dt-chassis-edge);
+  margin: 0 0.3rem;
+}
+.hud__gear {
+  font-size: 1rem;
+}

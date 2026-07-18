@@ -1,0 +1,80 @@
+/*
+ * Dark Tower — Hybrid polished-retro theme.
+ * Faithful palette of the 1981 unit (black plastic, red LED, amber, parchment board)
+ * with modern lighting tokens for glow/motion.
+ */
+:root {
+  /* Plastic / chassis */
+  --dt-black: #0c0b0d;
+  --dt-chassis: #1a1714;
+  --dt-chassis-2: #25201b;
+  --dt-chassis-edge: #3a322a;
+
+  /* Parchment board */
+  --dt-parchment: #d9c39a;
+  --dt-parchment-dark: #b89e6f;
+  --dt-ink: #2b2117;
+
+  /* The four kingdoms */
+  --dt-arisilon: #6e8b3d; /* green   */
+  --dt-brynthia: #b5483a; /* red     */
+  --dt-durnin: #3f6f8f; /* blue    */
+  --dt-zenon: #8a5a9e; /* purple  */
+
+  /* LED / lamps */
+  --dt-led: #ff2b1c;
+  --dt-led-glow: #ff5a3c;
+  --dt-led-dim: #5a0f0a;
+  --dt-amber: #ffb02e;
+  --dt-amber-glow: #ffd27a;
+
+  /* Metals */
+  --dt-brass: #c89b3c;
+  --dt-silver: #cfd4da;
+  --dt-gold: #ffd34d;
+
+  /* UI text */
+  --dt-text: #efe6d4;
+  --dt-text-dim: #a89f8c;
+
+  --dt-font-display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --dt-font-led: "DSEG7 Classic", "Courier New", monospace;
+  --dt-font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--dt-font-ui);
+  color: var(--dt-text);
+  background:
+    radial-gradient(circle at 50% 18%, #221c2a 0%, #0a090c 55%, #050406 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--dt-font-display);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+button {
+  font-family: var(--dt-font-ui);
+  cursor: pointer;
+}

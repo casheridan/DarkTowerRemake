@@ -1,0 +1,104 @@
+.riddle {
+  background: linear-gradient(180deg, #211b2b, #100d16);
+  border: 1px solid var(--dt-gold);
+  border-radius: 14px;
+  padding: 1.1rem;
+  text-align: center;
+  box-shadow: 0 0 26px rgba(255, 211, 77, 0.2);
+}
+.riddle__title {
+  color: var(--dt-gold);
+  font-size: 1.25rem;
+}
+.riddle__intro {
+  font-size: 0.8rem;
+  color: var(--dt-text-dim);
+  line-height: 1.45;
+  margin: 0.5rem 0 1rem;
+}
+
+.riddle__slots {
+  display: flex;
+  justify-content: center;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+.riddle__slot {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  background: #0a0810;
+  border: 2px dashed #3a3550;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+}
+.riddle__slot-empty {
+  color: #3a3550;
+  font-size: 1.2rem;
+}
+
+.riddle__keys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+.riddle__key {
+  padding: 0.6rem;
+  border-radius: 9px;
+  border: 1px solid;
+  background: #15110d;
+  color: var(--dt-text);
+  font-size: 0.9rem;
+}
+.riddle__key:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.riddle__feedback {
+  background: rgba(255, 176, 46, 0.12);
+  border: 1px solid var(--dt-amber);
+  color: var(--dt-amber);
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.9rem;
+}
+
+.riddle__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.riddle__reset {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 9px;
+  border: 1px solid var(--dt-chassis-edge);
+  background: #1d160d;
+  color: var(--dt-text);
+}
+.riddle__submit {
+  flex: 2;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 9px;
+  font-family: var(--dt-font-display);
+  color: #1a1206;
+  background: linear-gradient(180deg, var(--dt-amber-glow), var(--dt-amber));
+}
+.riddle__submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.riddle__leave {
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.5rem;
+  border: 1px solid var(--dt-chassis-edge);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dt-text-dim);
+  font-size: 0.8rem;
+}

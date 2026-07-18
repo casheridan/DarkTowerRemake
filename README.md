@@ -1,0 +1,66 @@
+# Dark Tower (1981) — Faithful React Remake
+
+A playable React/TypeScript remake of Milton Bradley's 1981 electronic board game
+**Dark Tower**, calibrated against the reverse-engineered ROM disassembly
+([ratsputin/Dark-Tower](https://github.com/ratsputin/Dark-Tower), vendored in `reference/`).
+Every probability, price, and combat formula is taken from the actual TMS1400 code —
+not from memory or the manual — so the game plays the way the original silicon does.
+
+Supports **1–4 players locally (hotseat)**, with a clickable board map, an animated
+pseudo-tower control panel, recreated sound effects, and an optional odds-reveal mode.
+
+## Running it
+
+```bash
+npm install
+npm run dev      # play at http://localhost:5173
+npm test         # run the engine test suite (Vitest)
+npm run build    # production build
+```
+
+## Faithfulness — what came straight from the disassembly
+
+| Mechanic | Behaviour | ROM source |
+|---|---|---|
+| Move events | Lost 18.75% · Dragon 12.5% · Plague 18.75% · Brigands 18.75% · Safe 31.25% (uniform 0–15 roll) | `DOMOVE` ~2107–2548 |
+| Brigand combat | Enemy count = `warriors ± random(0–2)`; each round strength = `warriors × random(1–4)` over `random(1–4)` sub-rounds; win → brigands halve, lose → −1 warrior; retreat = −1 warrior | `L800`/`L840`/`L880` ~2937–3235 |
+| Dragon | Takes ¼ gold + ¼ warriors (no Sword); with a Sword, win its hoard and the Sword is spent | `L6C0` ~2450 |
+| Plague | −2 warriors (negated by Healer) | ~2317 |
+| Food | `ceil(warriors / 15)` per turn; starvation = food→0 and −1 warrior | ~1648–1745 |
+| Sanctuary / Citadel | Warriors ≤4 → +5–8; own Citadel (first visit) doubles 5–24 warriors; gold ≤7 → +9–16; food ≤5 → +9–16 | `DOSANCT` ~2651–2808 |
+| Bazaar | Prices: warrior 5–8, food 1, beast/scout/healer 17–26; haggle drops 1 gold on a roll <12 (first) / <8 (after), else the bazaar closes | `LA98` ~3826–4160 |
+| Tomb / Ruin | Empty 12.5% · brigands 62.5% · treasure 25% (+13–20 gold, then key/Pegasus/Sword/Wizard) | `L8D9` ~3254–3445 |
+| Frontier / keys | Per-region key gate; collect brass→silver→gold across the foreign kingdoms | `S53D` ~1835–1874 |
+| Tower defenders | L1 17–32 · L2 33–64 · L3 17–64 | ~400 / setup |
+| Key riddle | Secret per-game key order, deduced via positional feedback | Dark Tower entry |
+
+## Architecture
+
+A **pure, framework-free game engine** (`src/engine/`) holds all the ROM-faithful logic and
+is covered by 45 unit/statistical tests. A thin Zustand store (`src/store/`) wraps the engine
+reducer; React components (`src/components/`) render the board, tower, HUD, bazaar, combat, and
+endgame. Sound is synthesized with the Web Audio API (`src/audio/`) — no audio assets.
+
+```
+src/engine/      constants · rng · encounters · economy · combat · bazaar ·
+                 sanctuary · tomb · frontier · keys · reducer  (+ __tests__)
+src/store/       Zustand store over the engine
+src/components/  Setup · Board · Tower · Hud · Bazaar · Combat · DarkTower · GameOver
+src/audio/       Web Audio sfx + the useSfx hook
+reference/       the vendored disassembly (calibration source of truth)
+```
+
+## How to play
+
+1. Choose 1–4 players and a difficulty.
+2. On your turn, **click a highlighted adjacent territory** to travel one space (a random
+   encounter resolves on arrival). Stepping into another kingdom is a **frontier crossing**
+   (gated by the key rules). Or use the action for the building you're standing on —
+   **Bazaar** (shop/haggle), **Sanctuary/Citadel** (replenish), **Tomb/Ruin** (treasure) —
+   or **Rest** to hold your ground.
+3. Collect the **brass, silver and gold keys** (one per foreign kingdom, in order), found in
+   the Tombs/Ruins of each kingdom you cross into.
+4. Travel to an **inner territory bordering the Dark Tower**, then with all three keys open the
+   **Dark Tower**, solve the Riddle of the Keys, and win the final battle to claim victory.
+
+Toggle **🎲 Odds** any time to reveal the exact disassembly-derived probabilities.
