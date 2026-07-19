@@ -6,13 +6,21 @@
 import { motion } from "framer-motion";
 import type { GameState, KeyType } from "../engine";
 import { ITEM_META, KEY_TINT } from "../ui/labels";
+import { itemArtFrame } from "../ui/towerArt";
+import type { TowerPresentation } from "../ui/presentation";
 import { useGame } from "../store/useGame";
 import "./DarkTower.css";
 
 const KEYS: KeyType[] = ["brassKey", "silverKey", "goldKey"];
 const tint = (k: KeyType) => KEY_TINT[k as keyof typeof KEY_TINT];
 
-export function DarkTower({ game }: { game: GameState }) {
+export function DarkTower({
+  game,
+  presentation,
+}: {
+  game: GameState;
+  presentation: TowerPresentation;
+}) {
   const dispatch = useGame((s) => s.dispatch);
   const step = game.riddleStep;
   const placed = game.keyRiddleOrder.slice(0, step); // locks you've already opened
@@ -58,7 +66,18 @@ export function DarkTower({ game }: { game: GameState }) {
             onClick={() => dispatch({ type: "GUESS_KEY", key: k })}
             style={{ borderColor: tint(k) }}
           >
-            🗝 {ITEM_META[k].label}
+            {presentation === "original" ? (
+              <img
+                className="riddle__key-art"
+                src={itemArtFrame(k)?.src}
+                alt=""
+                draggable={false}
+                decoding="async"
+              />
+            ) : (
+              <span className="riddle__key-symbol" aria-hidden="true">🗝</span>
+            )}
+            <span>{ITEM_META[k].label}</span>
           </button>
         ))}
       </div>

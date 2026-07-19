@@ -45,7 +45,7 @@
   background: radial-gradient(circle at 50% 30%, #211d2b, #0a0810);
   border: 2px solid #000;
   border-radius: 12px;
-  min-height: 220px;
+  min-height: 330px;
   padding: 1rem;
   perspective: 700px;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
@@ -57,7 +57,6 @@
   flex-direction: column;
   align-items: center;
   gap: 0.7rem;
-  transform-style: preserve-3d;
 }
 .drum__headline {
   font-family: var(--dt-font-display);
@@ -71,18 +70,96 @@
   padding-top: 0.5rem;
 }
 
-.drum__lamps {
+.drum__art-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.drum__frame-count {
+  position: absolute;
+  right: max(0.2rem, calc(50% - 136px));
+  bottom: 0.35rem;
+  z-index: 2;
+  padding: 0.12rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.74);
+  color: var(--dt-text-dim);
+  font-family: var(--dt-font-led);
+  font-size: 0.62rem;
+}
+
+.drum__dark-window {
+  width: min(100%, 272px);
+  aspect-ratio: 173 / 123;
+  display: grid;
+  place-items: center;
+  border: 5px solid #050405;
+  border-radius: 8px;
+  color: rgba(204, 177, 117, 0.15);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(87, 54, 39, 0.2), transparent 45%),
+    linear-gradient(145deg, #100d0c, #030303);
+  box-shadow:
+    0 0 0 1px #4a3c2d,
+    inset 0 0 35px #000;
+  font-family: var(--dt-font-display);
+  font-size: 1.3rem;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 14px rgba(192, 80, 48, 0.15);
+}
+
+.drum__clean-window {
+  width: min(100%, 272px);
+  aspect-ratio: 173 / 123;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 4px solid #050405;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #121010, #060606);
+  box-shadow:
+    0 0 0 1px #4a3c2d,
+    inset 0 0 22px rgba(0, 0, 0, 0.8);
+}
+.drum__clean-window span {
+  color: var(--dt-text-dim);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+}
+.drum__clean-window strong {
+  color: var(--dt-led-glow);
+  font-family: var(--dt-font-led);
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-shadow: 0 0 16px rgba(255, 76, 54, 0.52);
+}
+.drum__clean-window small {
+  color: var(--dt-amber);
+  font-family: var(--dt-font-led);
+  font-size: 0.62rem;
+}
+
+.drum__lamps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
   width: 100%;
-  max-width: 220px;
+  max-width: 272px;
 }
 .lamp {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  justify-content: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.28rem 0.2rem;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.3);
 }
@@ -95,9 +172,11 @@
   flex: none;
 }
 .lamp__txt {
-  font-size: 0.8rem;
+  font-size: 0.64rem;
   color: var(--dt-text-dim);
   letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-align: center;
 }
 .lamp--on .lamp__dot {
   background: var(--dt-led);
@@ -170,6 +249,108 @@
   opacity: 0.45;
 }
 
+.shortcut-help {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+.shortcut-help__dialog {
+  width: min(470px, 100%);
+  padding: 1rem;
+  border: 1px solid var(--dt-chassis-edge);
+  border-radius: 14px;
+  background: linear-gradient(160deg, #272118, #100d09 72%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
+}
+.shortcut-help__dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+.shortcut-help__dialog header span {
+  color: var(--dt-amber);
+  font: 700 0.62rem/1 var(--dt-font-display);
+  letter-spacing: 0.18em;
+}
+.shortcut-help__dialog h2 {
+  margin: 0.25rem 0 0;
+  color: var(--dt-gold);
+  font-size: 1.15rem;
+}
+.shortcut-help__close {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--dt-chassis-edge);
+  border-radius: 7px;
+  background: #16110c;
+  color: var(--dt-text);
+  font-size: 1.2rem;
+}
+.shortcut-help__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+.shortcut-help__key {
+  min-height: 4.2rem;
+  padding: 0.5rem 0.3rem;
+  border: 1px solid #4a3b27;
+  border-radius: 8px;
+  background: #15110c;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+.shortcut-help__key kbd {
+  min-width: 1.65rem;
+  padding: 0.25rem;
+  border: 1px solid var(--dt-gold);
+  border-radius: 5px;
+  background: #2a2115;
+  color: var(--dt-gold);
+  font: 700 0.75rem/1 var(--dt-font-display);
+}
+.shortcut-help__key span {
+  color: var(--dt-text);
+  font-size: 0.7rem;
+}
+.shortcut-help__dialog > p {
+  margin: 0.8rem 0 0;
+  color: var(--dt-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.tower__pegasus {
+  width: 100%;
+  margin: 0.45rem 0 0;
+  padding: 0.48rem 0.65rem;
+  border: 1px solid #7eaec4;
+  border-radius: 9px;
+  background: rgba(79, 127, 148, 0.13);
+  color: #cdeeff;
+  font-family: var(--dt-font-display);
+  letter-spacing: 0.04em;
+}
+.tower__pegasus--on {
+  background: linear-gradient(180deg, rgba(170, 223, 246, 0.28), rgba(79, 127, 148, 0.2));
+  border-color: #cdeeff;
+  box-shadow: 0 0 10px rgba(188, 232, 255, 0.22);
+}
+.tower__pegasus:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
 /* Bazaar shown inside the drum window */
 .drum--bazaar,
 .drum--inv {
@@ -195,11 +376,16 @@
   text-align: center;
 }
 .bz-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
   text-align: center;
   padding: 0.4rem 0;
 }
 .bz-icon {
-  font-size: 2rem;
+  font-size: 2.4rem;
+  line-height: 1;
 }
 .bz-name {
   font-family: var(--dt-font-display);
@@ -247,6 +433,34 @@
   min-width: 3.2rem;
   font-weight: 700;
 }
+.inv-art-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+.inv-art {
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+.inv-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 173 / 123;
+  object-fit: cover;
+  border: 2px solid #050405;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px #4a3c2d;
+}
+.inv-art figcaption {
+  margin-top: 0.15rem;
+  overflow: hidden;
+  color: var(--dt-text-dim);
+  font-size: 0.56rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inv-hint {
   font-size: 0.7rem;
   color: var(--dt-text-dim);
@@ -265,4 +479,17 @@
 .tower__odds span {
   color: var(--dt-amber);
   font-weight: 700;
+}
+
+.tower__archive-credit {
+  color: var(--dt-text-dim);
+  font-size: 0.6rem;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration-color: rgba(201, 175, 116, 0.35);
+  text-underline-offset: 0.16rem;
+}
+
+.tower__archive-credit:hover {
+  color: var(--dt-parchment);
 }

@@ -15,6 +15,14 @@
   width: min(440px, 92vw);
   box-shadow: 0 0 60px rgba(255, 211, 77, 0.35);
 }
+.over--defeat .over__card {
+  border-color: var(--dt-led);
+  box-shadow: 0 0 60px rgba(196, 45, 45, 0.32);
+}
+.over--defeat .over__title {
+  color: var(--dt-led);
+  text-shadow: 0 0 26px rgba(196, 45, 45, 0.5);
+}
 .over__crown {
   font-size: 4rem;
 }
@@ -24,6 +32,10 @@
   letter-spacing: 0.1em;
   text-shadow: 0 0 26px rgba(255, 211, 77, 0.5);
   margin: 0.3rem 0;
+}
+.over__card > .tower-art {
+  width: min(100%, 300px);
+  margin: 0.8rem auto 1rem;
 }
 .over__winner {
   display: flex;

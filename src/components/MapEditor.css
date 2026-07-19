@@ -194,6 +194,11 @@
   font-size: 0.78rem;
   margin-bottom: 0.8rem;
 }
+.editor__notice--success {
+  background: rgba(72, 157, 91, 0.15);
+  border-color: #489d5b;
+  color: #bce8c5;
+}
 .ed-btn--tool {
   padding: 0.5rem 0.2rem;
   font-size: 0.76rem;

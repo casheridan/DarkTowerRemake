@@ -10,13 +10,13 @@ export type KingdomId = "arisilon" | "brynthia" | "durnin" | "zenon";
 
 export type Difficulty = 1 | 2 | 3 | 4;
 
-/** Durable inventory items + the three keys. Mirrors RAM files 1/3 and 2/3. */
+/** Inventory items + the three keys. Pegasus is tracked by its physical token. */
 export type ItemType =
   | "sword" // Dragon defense — also wins the dragon's hoard
   | "scout" // Lost defense
   | "healer" // Plague defense
   | "beast" // Reduces food consumption / carries gold
-  | "pegasus" // Free flight (move) to anywhere in the kingdom
+  | "pegasus" // One-use flight within a kingdom or across its frontier
   | "brassKey"
   | "silverKey"
   | "goldKey";
@@ -186,8 +186,6 @@ export interface CombatState {
   rounds: CombatRound[];
   over: boolean;
   playerWon: boolean | null;
-  /** Loot awarded on victory (resolved when the fight ends). */
-  reward?: { warriors?: number; gold?: number; items?: ItemType[] };
 }
 
 /** Result of resolving a single action, returned to the UI to animate. */
@@ -210,6 +208,8 @@ export interface EventResult {
   deltas?: Partial<Pick<Player, "warriors" | "gold" | "food">>;
   /** Items gained this event. */
   itemsGained?: ItemType[];
+  /** A completed Bazaar purchase; absent for rejection or leaving empty-handed. */
+  purchase?: { ware: BazaarWare; quantity: number; total: number };
   /** Whether the active player died as a result. */
   playerDied?: boolean;
 }

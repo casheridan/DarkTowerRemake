@@ -9,6 +9,7 @@ export * from "./sanctuary";
 export * from "./bazaar";
 export * from "./tomb";
 export * from "./frontier";
+export * from "./pegasus";
 export * from "./combat";
 export * from "./setup";
 export * from "./reducer";

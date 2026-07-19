@@ -65,4 +65,18 @@ describe("combat rounds (asm L840/L880)", () => {
     expect(after.playerWon).toBe(false);
     expect(after.warriorsRemaining).toBe(9);
   });
+
+  it("forces a multiplayer retreat at two warriors and preserves one survivor", () => {
+    const combat = startBrigandCombat(makeTestPlayer({ warriors: 2 }), fixed({}) as any);
+    const after = combatRound(combat, fixed({}) as any, 2);
+    expect(after.over).toBe(true);
+    expect(after.playerWon).toBe(false);
+    expect(after.warriorsRemaining).toBe(1);
+  });
+
+  it("never lets a one-warrior multiplayer retreat drop to zero", () => {
+    const combat = startBrigandCombat(makeTestPlayer({ warriors: 1 }), fixed({}) as any);
+    expect(combatRetreat(combat, 2).warriorsRemaining).toBe(1);
+    expect(combatRetreat(combat, 1).warriorsRemaining).toBe(0);
+  });
 });

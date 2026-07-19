@@ -13,7 +13,7 @@ export interface Rng {
   next(): number;
   /** Uniform integer in [0, 15] — the ROM's core 4-bit random roll. */
   rand0to15(): number;
-  /** Uniform integer in [0, 2] — used for the brigand headcount advantage. */
+  /** ROM-weighted 0–2 advantage: 6/16 zero, 5/16 one, 5/16 two. */
   rand0to2(): number;
   /** A single random bit (0 or 1) — e.g. who gets the combat advantage. */
   randBit(): 0 | 1;
@@ -42,7 +42,10 @@ export function createRng(seed = (Math.random() * 2 ** 32) >>> 0): Rng {
     next,
     range,
     rand0to15: () => Math.floor(next() * 16),
-    rand0to2: () => Math.floor(next() * 3),
+    rand0to2: () => {
+      const roll = Math.floor(next() * 16);
+      return roll <= 5 ? 0 : roll <= 10 ? 1 : 2;
+    },
     randBit: () => (next() < 0.5 ? 0 : 1),
     rand1to4: () => 1 + Math.floor(next() * 4),
   };

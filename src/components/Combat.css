@@ -18,6 +18,10 @@
   color: var(--dt-gold);
 }
 
+.combat > .tower-art {
+  margin: 0 auto 1rem;
+}
+
 .combat__scoreboard {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

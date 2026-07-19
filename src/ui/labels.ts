@@ -6,7 +6,11 @@ export const ITEM_META: Record<ItemType, { label: string; icon: string; desc: st
   scout: { label: "Scout", icon: "🧭", desc: "Never lose your way." },
   healer: { label: "Healer", icon: "⚕️", desc: "Wards off the plague." },
   beast: { label: "Beast", icon: "🐎", desc: "A loyal pack-beast for your caravan." },
-  pegasus: { label: "Pegasus", icon: "🪽", desc: "Fly to any space in a kingdom (one use)." },
+  pegasus: {
+    label: "Pegasus",
+    icon: "🪽",
+    desc: "Fly to a legal territory; landing immediately ends your turn.",
+  },
   brassKey: { label: "Brass Key", icon: "🗝️", desc: "First key to the Dark Tower." },
   silverKey: { label: "Silver Key", icon: "🗝️", desc: "Second key to the Dark Tower." },
   goldKey: { label: "Gold Key", icon: "🗝️", desc: "Third key to the Dark Tower." },

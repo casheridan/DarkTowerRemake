@@ -2,15 +2,29 @@
 import { motion } from "framer-motion";
 import { KINGDOM_ORDER, type GameState } from "../engine";
 import { KINGDOM_META } from "../ui/labels";
+import { towerArtFrame } from "../ui/towerArt";
+import type { TowerPresentation } from "../ui/presentation";
 import { useGame } from "../store/useGame";
+import { TowerArtwork } from "./TowerArtwork";
 import "./GameOver.css";
 
-export function GameOver({ game }: { game: GameState }) {
+export function GameOver({
+  game,
+  presentation,
+}: {
+  game: GameState;
+  presentation: TowerPresentation;
+}) {
   const newGameQuit = useGame((s) => s.quitToMenu);
   const winner = game.players.find((p) => p.id === game.winnerId);
+  const defeated = !winner;
+  const fallen = game.players[game.currentPlayerIndex];
+  const displayFrame = defeated
+    ? towerArtFrame("victory-warriors-brigands", 1)
+    : towerArtFrame("victory-warriors-brigands", 0);
 
   return (
-    <div className="over">
+    <div className={`over ${defeated ? "over--defeat" : ""}`}>
       <motion.div
         className="over__card"
         initial={{ opacity: 0, scale: 0.85 }}
@@ -22,9 +36,12 @@ export function GameOver({ game }: { game: GameState }) {
           animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.15, 1] }}
           transition={{ repeat: Infinity, duration: 2.5 }}
         >
-          👑
+          {defeated ? "☠️" : "👑"}
         </motion.div>
-        <h1 className="over__title">VICTORY</h1>
+        <h1 className="over__title">{defeated ? "DEFEAT" : "VICTORY"}</h1>
+        {presentation === "original" && (
+          <TowerArtwork frame={displayFrame} dimmed={defeated} />
+        )}
         {winner && (
           <p className="over__winner">
             <span
@@ -34,10 +51,17 @@ export function GameOver({ game }: { game: GameState }) {
             {winner.name} has conquered the Dark Tower!
           </p>
         )}
-        <p className="over__sub">
-          The evil is vanquished and the realm is saved after {game.turn}{" "}
-          {game.turn === 1 ? "turn" : "turns"}.
-        </p>
+        {defeated ? (
+          <>
+            <p className="over__winner">{fallen.name}'s last warrior has fallen.</p>
+            <p className="over__sub">The quest ends with a score of 00.</p>
+          </>
+        ) : (
+          <p className="over__sub">
+            The evil is vanquished and the realm is saved after {game.turn}{" "}
+            {game.turn === 1 ? "turn" : "turns"}.
+          </p>
+        )}
         <button className="over__again" onClick={newGameQuit}>
           New Quest
         </button>

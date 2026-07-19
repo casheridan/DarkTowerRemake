@@ -12,9 +12,10 @@
  *   - **Yes/Buy**: begin/continue an incremental purchase. Each Yes adds one to
  *     the quantity; if the running total ever exceeds your gold, the bazaar
  *     closes instantly and the purchase is lost.
- *   - **No/End**: if a purchase is pending, confirm it and CLOSE the bazaar —
- *     one completed transaction per visit. With nothing pending, No/End just
- *     passes to the next item (and closes once past the last one).
+ *   - **No/End**: if a purchase is pending, confirm it and end the visit.
+ *     With nothing pending, pass on the current item
+ *     and continue browsing. The bazaar closes once an item is purchased or
+ *     the player moves past the last offer.
  */
 import { clampStat } from "./economy";
 import type { BazaarState, BazaarWare, ItemType, Player } from "./types";
@@ -74,6 +75,8 @@ export interface BazaarOutcome {
   player: Player;
   /** Non-null when the visit ends this step (the reducer then ends the turn). */
   ended: string | null;
+  /** Present only when the visit ended by completing a valid purchase. */
+  purchase?: { ware: BazaarWare; quantity: number; total: number };
 }
 
 /** Haggle the item on display. Only meaningful before an incremental purchase. */
@@ -147,8 +150,8 @@ export function bazaarYes(bazaar: BazaarState, player: Player): BazaarOutcome {
 }
 
 /**
- * No/End — with a pending purchase, complete the transaction and close the
- * bazaar (one deal per visit). With nothing pending, pass to the next item.
+ * No/End — complete a pending purchase and leave the Bazaar. With no pending
+ * purchase, simply pass. Moving past the final item closes the Bazaar.
  */
 export function bazaarNo(bazaar: BazaarState, player: Player): BazaarOutcome {
   const ware = currentWare(bazaar);
@@ -162,10 +165,13 @@ export function bazaarNo(bazaar: BazaarState, player: Player): BazaarOutcome {
     if (ware === "warrior") nextPlayer.warriors = clampStat(nextPlayer.warriors + bazaar.qty);
     else if (ware === "food") nextPlayer.food = clampStat(nextPlayer.food + bazaar.qty);
     else nextPlayer.inventory.add(GEAR[ware]);
+
+    const purchase = `bought ${bazaar.qty} × ${WARE_LABEL[ware]} for ${total} gold`;
     return {
       bazaar: { ...bazaar, closed: true, qty: 0 },
       player: nextPlayer,
-      ended: `Trade complete — bought ${bazaar.qty} × ${WARE_LABEL[ware]} for ${total} gold. The bazaar closes.`,
+      ended: `Trade complete — ${purchase}. You leave the Bazaar. Press No/End to end your turn.`,
+      purchase: { ware, quantity: bazaar.qty, total },
     };
   }
 

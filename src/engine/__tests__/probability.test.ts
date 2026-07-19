@@ -71,4 +71,16 @@ describe("RNG uniformity", () => {
       expect(b).toBeLessThanOrEqual(2);
     }
   });
+
+  it("rand0to2 uses the ROM's 6/16, 5/16, 5/16 weighting", () => {
+    const rng = createRng(0xb16b00b5);
+    const counts = [0, 0, 0];
+    const samples = 160_000;
+    for (let i = 0; i < samples; i++) counts[rng.rand0to2()]++;
+
+    const expected = [6 / 16, 5 / 16, 5 / 16];
+    for (let i = 0; i < counts.length; i++) {
+      expect(Math.abs(counts[i] / samples - expected[i])).toBeLessThan(0.01);
+    }
+  });
 });

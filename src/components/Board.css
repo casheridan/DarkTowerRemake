@@ -81,6 +81,18 @@
 .terr--reach:hover {
   fill-opacity: 1;
 }
+.terr--flight {
+  cursor: pointer;
+  fill-opacity: 0.82;
+  stroke: #bce8ff;
+  stroke-width: 2.8;
+  stroke-dasharray: 7 4;
+  animation: flightPulse 1.3s ease-in-out infinite;
+}
+.terr--flight:hover {
+  fill-opacity: 1;
+  stroke: #fff;
+}
 .terr--here {
   fill-opacity: 0.92;
   stroke: #fff;
@@ -89,6 +101,12 @@
 @keyframes terrPulse {
   50% {
     stroke-opacity: 0.45;
+  }
+}
+@keyframes flightPulse {
+  50% {
+    stroke-opacity: 0.4;
+    stroke-dashoffset: 11;
   }
 }
 

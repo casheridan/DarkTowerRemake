@@ -66,17 +66,43 @@ describe("bazaar (asm LA98) — sequential incremental shop", () => {
     expect(b.sequence).toEqual(["warrior", "food", "healer"]);
   });
 
-  it("Yes increments quantity; No/End confirms the purchase and closes the bazaar", () => {
+  it("Yes increments quantity; No/End confirms one purchase and closes the visit", () => {
     // warriors at 5 gold, player has 30
     let b = priced();
     const p0 = makeTestPlayer({ gold: 30, warriors: 10 });
     let r = bazaarYes(b, p0); // qty 1 (5)
     r = bazaarYes(r.bazaar, r.player); // qty 2 (10)
     expect(r.bazaar.qty).toBe(2);
-    r = bazaarNo(r.bazaar, r.player); // confirm 2 warriors → transaction done
+    r = bazaarNo(r.bazaar, r.player); // confirm 2 warriors and leave
     expect(r.player.gold).toBe(20);
     expect(r.player.warriors).toBe(12);
-    expect(r.ended).toBeTruthy(); // one deal per visit — the bazaar closes
+    expect(r.ended).toMatch(/leave the bazaar/i);
+    expect(r.bazaar.closed).toBe(true);
+    expect(currentWare(r.bazaar)).toBe("warrior");
+  });
+
+  it("ends the visit after buying food instead of continuing to another offer", () => {
+    let b = { ...priced(), index: 1 }; // food
+    const p0 = makeTestPlayer({ gold: 30, food: 10 });
+    let r = bazaarYes(b, p0);
+    r = bazaarNo(r.bazaar, r.player);
+
+    expect(r.player.gold).toBe(29);
+    expect(r.player.food).toBe(11);
+    expect(r.ended).toMatch(/leave the bazaar/i);
+    expect(r.bazaar.closed).toBe(true);
+    expect(currentWare(r.bazaar)).toBe("food");
+  });
+
+  it("closes after confirming a purchase from the final offer", () => {
+    const b = { ...priced(), index: 4 }; // healer
+    const p0 = makeTestPlayer({ gold: 30 });
+    let r = bazaarYes(b, p0);
+    r = bazaarNo(r.bazaar, r.player);
+
+    expect(r.player.inventory.has("healer")).toBe(true);
+    expect(r.player.gold).toBe(13);
+    expect(r.ended).toBeTruthy();
     expect(r.bazaar.closed).toBe(true);
   });
 
@@ -142,6 +168,16 @@ describe("tomb / ruin (asm L8D9)", () => {
     expect(r.player.gold).toBe(15);
     expect(r.player.inventory.has("brassKey")).toBe(true);
     expect(r.player.flags.regionKeyAvailable).toBe(false);
+  });
+
+  it("awards a one-use Pegasus token on a secondary roll of 10–11", () => {
+    const p = makeTestPlayer({ inventory: new Set() });
+    const rng = { ...scriptedRng([12, 10]), range: () => 15 };
+    const r = resolveTomb(p, rng);
+
+    expect(r.player.inventory.has("pegasus")).toBe(true);
+    expect(r.result.itemsGained).toContain("pegasus");
+    expect(r.result.drum).toBe("dragon-sword-pegasus");
   });
 });
 

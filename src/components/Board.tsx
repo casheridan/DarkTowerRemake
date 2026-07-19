@@ -16,6 +16,7 @@ import {
   hasAllKeys,
   isTowerAdjacent,
   neighborsOf,
+  pegasusDestinations,
   type GameState,
 } from "../engine";
 import { BUILDING_META, KINGDOM_META } from "../ui/labels";
@@ -34,17 +35,31 @@ export function Board({ game }: { game: GameState }) {
   const select = useGame((s) => s.select);
   const selected = useGame((s) => s.selected);
   const dispatch = useGame((s) => s.dispatch);
+  const pegasusMode = useGame((s) => s.pegasusMode);
   const svgRef = useRef<SVGSVGElement>(null);
   const pz = usePanZoom(svgRef, BOARD_SIZE);
 
   const active = game.players[game.currentPlayerIndex];
   const canAct = game.phase === "playing";
-  const reachable = new Set(canAct ? neighborsOf(active.position) : []);
+  const reachable = new Set(canAct && !pegasusMode ? neighborsOf(active.position) : []);
+  const flightReachable = new Set(
+    canAct && pegasusMode ? pegasusDestinations(active) : []
+  );
   const allKeys = hasAllKeys(active);
-  const towerReady = canAct && allKeys && isTowerAdjacent(active.position);
+  const towerReady = canAct && !pegasusMode && allKeys && isTowerAdjacent(active.position);
 
   const clickTerritory = (id: string) => {
     if (!canAct) return;
+    if (pegasusMode) {
+      if (!flightReachable.has(id)) {
+        select(null);
+        return;
+      }
+      // Flight lands immediately but consumes the whole turn. Buildings at the
+      // destination therefore cannot be used until this player's next turn.
+      dispatch({ type: "PEGASUS_FLY", to: id });
+      return;
+    }
     // Only your own square or a reachable neighbour can be acted on; a stray
     // click elsewhere clears the selection back to your own square.
     if (id === active.position || reachable.has(id)) select(id);
@@ -91,6 +106,7 @@ export function Board({ game }: { game: GameState }) {
             if (t.polygon.length === 0) return null;
             const isHere = active.position === id;
             const canGo = reachable.has(id);
+            const canFly = flightReachable.has(id);
             return (
               <path
                 key={id}
@@ -99,6 +115,7 @@ export function Board({ game }: { game: GameState }) {
                   "terr",
                   isHere ? "terr--here" : "",
                   canGo ? "terr--reach" : "",
+                  canFly ? "terr--flight" : "",
                   selected === id ? "terr--selected" : "",
                   t.building ? "terr--bld" : "",
                   t.lane ? "terr--lane" : "",

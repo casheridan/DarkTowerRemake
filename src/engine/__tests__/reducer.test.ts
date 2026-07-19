@@ -75,7 +75,7 @@ describe("level 4 (test mode) loadout", () => {
       expect(p.warriors).toBe(99);
       expect(p.gold).toBe(99);
       expect(p.food).toBe(99);
-      for (const item of ["sword", "scout", "healer", "beast", "brassKey", "silverKey", "goldKey"]) {
+      for (const item of ["sword", "scout", "healer", "beast", "pegasus", "brassKey", "silverKey", "goldKey"]) {
         expect(p.inventory.has(item as never)).toBe(true);
       }
     }
@@ -108,6 +108,77 @@ describe("item mechanics at end of turn", () => {
     s = reduce(s, { type: "MOVE_TO", to: STEP }, scriptedRng([12])); // safe travel
     s = reduce(s, { type: "ACK_EVENT" }, scriptedRng([0]));
     expect(s.players[0].gold).toBe(30);
+  });
+
+  it("lands immediately and ends the turn without a travel encounter", () => {
+    const target = BOARD.order.find(
+      (id) =>
+        !isLane(id) &&
+        kingdomOf(id) === "arisilon" &&
+        id !== START &&
+        !neighborsOf(START).includes(id)
+    )!;
+    const s = withActive(twoPlayerGame(), { inventory: new Set(["pegasus"]) });
+    const r = reduce(
+      s,
+      { type: "PEGASUS_FLY", to: target },
+      scriptedRng([1]) // would be Lost if a normal move encounter were rolled
+    );
+
+    expect(r.players[0].position).toBe(target);
+    expect(r.players[0].inventory.has("pegasus")).toBe(false);
+    expect(r.currentPlayerIndex).toBe(1);
+    expect(r.phase).toBe("playing");
+    expect(r.lastEvent).toBeNull();
+  });
+
+  it("lands on a next-kingdom building but waits until the next turn to use it", () => {
+    const target = BOARD.order.find(
+      (id) => BOARD.territories[id].kingdom === "brynthia" && buildingOf(id) === "bazaar"
+    )!;
+    let s = twoPlayerGame();
+    s = withActive(s, { inventory: new Set(["pegasus"]) });
+
+    // The destination click lands and hands play to the next player. It does
+    // not enter the bazaar as part of the flight.
+    s = reduce(s, { type: "PEGASUS_FLY", to: target }, createRng(1));
+    expect(s.phase).toBe("playing");
+    expect(s.currentPlayerIndex).toBe(1);
+    expect(s.players[0].position).toBe(target);
+    expect(s.players[0].lastKingdom).toBe("brynthia");
+    expect(s.players[0].previousKingdom).toBe("arisilon");
+    expect(s.players[0].flags.regionKeyAvailable).toBe(true);
+    expect(s.players[0].inventory.has("pegasus")).toBe(false);
+
+    // Once the other player finishes, the landed player may use the building.
+    s = reduce(s, { type: "SKIP_TURN" }, createRng(1));
+    expect(s.currentPlayerIndex).toBe(0);
+    s = reduce(s, { type: "ENTER_BAZAAR" }, createRng(1));
+    expect(s.phase).toBe("bazaar");
+  });
+
+  it("cannot fly into the next kingdom until its current key is found", () => {
+    const current = BOARD.order.find(
+      (id) => !isLane(id) && kingdomOf(id) === "brynthia" && buildingOf(id) !== "citadel"
+    )!;
+    const target = BOARD.order.find(
+      (id) => !isLane(id) && kingdomOf(id) === "durnin" && buildingOf(id) !== "citadel"
+    )!;
+    const s = withActive(twoPlayerGame(), {
+      position: current,
+      lastKingdom: "brynthia",
+      previousKingdom: "arisilon",
+      inventory: new Set(["pegasus"]),
+      flags: {
+        citadelVisited: false,
+        cursed: false,
+        lostWithScout: false,
+        freshHaggle: true,
+        regionKeyAvailable: true,
+      },
+    });
+
+    expect(reduce(s, { type: "PEGASUS_FLY", to: target }, createRng(1))).toBe(s);
   });
 });
 
@@ -157,6 +228,106 @@ describe("reducer turn lifecycle", () => {
     expect(s1.combat?.source).toBe("brigands");
   });
 
+  it("preserves one warrior when a multiplayer encounter would reduce the army to zero", () => {
+    const s0 = withActive(twoPlayerGame(), { warriors: 1 });
+    const s1 = reduce(s0, { type: "MOVE_TO", to: STEP }, scriptedRng([6])); // plague: -2
+    expect(s1.phase).toBe("encounter");
+    expect(s1.players[0].warriors).toBe(1);
+    expect(s1.players[0].alive).toBe(true);
+  });
+
+  it("ends a single-player game at score 00 when the last warrior falls", () => {
+    let s = createGame({ players: [{ name: "Ann" }], difficulty: 1 }, createRng(1));
+    s = withActive(s, { warriors: 1 });
+    s = reduce(s, { type: "MOVE_TO", to: STEP }, scriptedRng([6])); // plague: -2
+    expect(s.phase).toBe("gameOver");
+    expect(s.winnerId).toBeNull();
+    expect(s.players[0].warriors).toBe(0);
+    expect(s.players[0].alive).toBe(false);
+    expect(s.lastEvent?.playerDied).toBe(true);
+  });
+
+  it("ends a single-player game when combat reduces the army to zero", () => {
+    let s = createGame({ players: [{ name: "Ann" }], difficulty: 1 }, createRng(1));
+    s = reduce(s, { type: "MOVE_TO", to: STEP }, scriptedRng([9]));
+    s = {
+      ...s,
+      combat: {
+        ...s.combat!,
+        warriorsRemaining: 0,
+        over: true,
+        playerWon: false,
+      },
+    };
+    s = reduce(s, { type: "COMBAT_END" }, createRng(1));
+    expect(s.phase).toBe("gameOver");
+    expect(s.players[0].alive).toBe(false);
+    expect(s.players[0].warriors).toBe(0);
+  });
+
+  it("ends a single-player game when starvation takes the last warrior", () => {
+    let s = createGame({ players: [{ name: "Ann" }], difficulty: 1 }, createRng(1));
+    s = withActive(s, { warriors: 1, food: 0, gold: 0 });
+    s = reduce(s, { type: "SKIP_TURN" }, createRng(1));
+    expect(s.phase).toBe("gameOver");
+    expect(s.players[0].alive).toBe(false);
+    expect(s.lastEvent?.kind).toBe("starvation");
+  });
+
+  it("shows the shared treasure screen after a Brigand victory before ending the turn", () => {
+    let s = reduce(twoPlayerGame(), { type: "MOVE_TO", to: STEP }, scriptedRng([9]));
+    s = {
+      ...s,
+      combat: { ...s.combat!, brigandsRemaining: 0, over: true, playerWon: true },
+    };
+
+    // Gold range uses its minimum (13); secondary roll 10 awards Pegasus.
+    s = reduce(s, { type: "COMBAT_END" }, scriptedRng([10]));
+    expect(s.phase).toBe("encounter");
+    expect(s.combat).toBeNull();
+    expect(s.currentPlayerIndex).toBe(0);
+    expect(s.players[0].gold).toBe(43);
+    expect(s.players[0].inventory.has("pegasus")).toBe(true);
+    expect(s.lastEvent?.kind).toBe("combat");
+    expect(s.lastEvent?.messages.join(" ")).toMatch(/treasure/i);
+
+    s = reduce(s, { type: "ACK_EVENT" }, createRng(1));
+    expect(s.currentPlayerIndex).toBe(1);
+  });
+
+  it("shows direct Tomb/Ruin treasure immediately without entering combat", () => {
+    const spot = squareBeside("tomb");
+    let s = standOn(twoPlayerGame(), spot.from);
+    s = reduce(
+      s,
+      { type: "VISIT_TOMB", to: spot.building },
+      scriptedRng([12, 10])
+    );
+
+    expect(s.phase).toBe("encounter");
+    expect(s.players[0].position).toBe(spot.building);
+    expect(s.players[0].inventory.has("pegasus")).toBe(true);
+    expect(s.lastEvent?.kind).toBe("tomb");
+    expect(s.lastEvent?.messages.join(" ")).toMatch(/treasure/i);
+  });
+
+  it("applies the Wizard's stolen resources and lost-turn curse", () => {
+    const spot = squareBeside("ruin");
+    let s = standOn(twoPlayerGame(), spot.from);
+    s = reduce(
+      s,
+      { type: "VISIT_TOMB", to: spot.building },
+      scriptedRng([12, 14])
+    );
+
+    expect(s.players[0].warriors).toBe(12);
+    expect(s.players[0].gold).toBe(50); // +13 treasure, then +7 stolen
+    expect(s.players[1].warriors).toBe(8);
+    expect(s.players[1].gold).toBe(23);
+    expect(s.players[1].flags.cursed).toBe(true);
+    expect(s.lastEvent?.messages.join(" ")).toMatch(/steal 2 warriors and 7 gold/i);
+  });
+
   it("entering a bazaar from an adjacent square travels there, then opens the shop", () => {
     const spot = squareBeside("bazaar");
     const s0 = standOn(twoPlayerGame(), spot.from);
@@ -164,6 +335,26 @@ describe("reducer turn lifecycle", () => {
     expect(s1.phase).toBe("bazaar");
     expect(s1.players[0].position).toBe(spot.building); // pawn moved onto the bazaar
     expect(s1.bazaar).toBeTruthy();
+  });
+
+  it("ends a Bazaar visit after one completed Scout purchase", () => {
+    const spot = squareBeside("bazaar");
+    let s = withActive(standOn(twoPlayerGame(), spot.from), { gold: 99 });
+    s = reduce(s, { type: "ENTER_BAZAAR", to: spot.building }, createRng(3));
+    const scoutIndex = s.bazaar!.sequence.indexOf("scout");
+    expect(scoutIndex).toBeGreaterThanOrEqual(0);
+    s = { ...s, bazaar: { ...s.bazaar!, index: scoutIndex } };
+
+    s = reduce(s, { type: "BAZAAR_YES" }, createRng(3));
+    s = reduce(s, { type: "BAZAAR_NO" }, createRng(3));
+
+    expect(s.players[0].inventory.has("scout")).toBe(true);
+    expect(s.players[0].inventory.has("healer")).toBe(false);
+    expect(s.phase).toBe("encounter");
+    expect(s.bazaar).toBeNull();
+    expect(s.lastEvent?.purchase?.ware).toBe("scout");
+    expect(s.lastEvent?.itemsGained).toEqual(["scout"]);
+    expect(s.lastEvent?.drum).not.toBe("wizard-bazaarclosed-keymissing");
   });
 
   it("visiting a sanctuary from an adjacent square travels there, then resolves it", () => {
@@ -224,7 +415,7 @@ describe("reducer turn lifecycle", () => {
     regionKeyAvailable: false,
   };
 
-  it("crosses a frontier forward into a new kingdom, but never back", () => {
+  it("crosses a frontier forward with a normal move encounter, but never back", () => {
     const { lane, aCell, bCell } = frontierBetween("arisilon", "brynthia");
     // On the A–B lane, arrived from arisilon (previous was zenon). Forward = brynthia.
     const s = withActive(twoPlayerGame(), {
@@ -236,12 +427,47 @@ describe("reducer turn lifecycle", () => {
     // Going back into arisilon (the kingdom you came from) is refused outright.
     expect(reduce(s, { type: "MOVE_TO", to: aCell }, createRng(1))).toBe(s);
     // Crossing forward into brynthia works and the new region then owes a key.
-    const fwd = reduce(s, { type: "MOVE_TO", to: bCell }, createRng(1));
+    const fwd = reduce(s, { type: "MOVE_TO", to: bCell }, scriptedRng([12]));
     expect(fwd.players[0].position).toBe(bCell);
     expect(fwd.players[0].lastKingdom).toBe("brynthia");
     expect(fwd.players[0].previousKingdom).toBe("arisilon");
     expect(fwd.players[0].flags.regionKeyAvailable).toBe(true);
-    expect(fwd.lastEvent?.messages[0]).toMatch(/cross the frontier into Brynthia/i);
+    expect(fwd.lastEvent?.kind).toBe("move");
+    expect(fwd.lastEvent?.moveEvent).toBe("safe");
+    expect(fwd.lastEvent?.messages[0]).toMatch(/road is quiet/i);
+  });
+
+  it("can encounter Brigands on the territory immediately after a frontier", () => {
+    const { lane, bCell } = frontierBetween("arisilon", "brynthia");
+    const s = withActive(twoPlayerGame(), {
+      position: lane,
+      lastKingdom: "arisilon",
+      previousKingdom: "zenon",
+      flags: { ...OPEN_FLAGS },
+    });
+
+    const fwd = reduce(s, { type: "MOVE_TO", to: bCell }, scriptedRng([8]));
+    expect(fwd.players[0].position).toBe(bCell);
+    expect(fwd.lastEvent?.moveEvent).toBe("brigands");
+    expect(fwd.phase).toBe("combat");
+    expect(fwd.combat).not.toBeNull();
+  });
+
+  it("a Lost result while leaving a frontier cancels the crossing completely", () => {
+    const { lane, bCell } = frontierBetween("arisilon", "brynthia");
+    const s = withActive(twoPlayerGame(), {
+      position: lane,
+      lastKingdom: "arisilon",
+      previousKingdom: "zenon",
+      flags: { ...OPEN_FLAGS },
+    });
+
+    const lost = reduce(s, { type: "MOVE_TO", to: bCell }, scriptedRng([0]));
+    expect(lost.players[0].position).toBe(lane);
+    expect(lost.players[0].lastKingdom).toBe("arisilon");
+    expect(lost.players[0].previousKingdom).toBe("zenon");
+    expect(lost.players[0].flags.regionKeyAvailable).toBe(false);
+    expect(lost.lastEvent?.moveEvent).toBe("lost");
   });
 
   it("won't let you step onto a frontier until the region's key is found", () => {

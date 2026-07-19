@@ -45,12 +45,27 @@
   margin-bottom: 0.9rem;
 }
 .riddle__key {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
   padding: 0.6rem;
   border-radius: 9px;
   border: 1px solid;
   background: #15110d;
   color: var(--dt-text);
   font-size: 0.9rem;
+}
+.riddle__key-art {
+  width: 76px;
+  aspect-ratio: 173 / 123;
+  object-fit: cover;
+  border: 2px solid #050405;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px #4a3c2d;
+}
+.riddle__key-symbol {
+  width: 32px;
+  font-size: 1.35rem;
 }
 .riddle__key:disabled {
   opacity: 0.35;

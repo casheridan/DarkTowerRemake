@@ -21,6 +21,7 @@ const LEVEL4_LOADOUT: ItemType[] = [
   "scout",
   "healer",
   "beast",
+  "pegasus",
   "brassKey",
   "silverKey",
   "goldKey",

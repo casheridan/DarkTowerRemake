@@ -18,14 +18,8 @@
  * KILLONE path; forced in multiplayer once you drop to ≤2 warriors).
  */
 import { clampStat } from "./economy";
-import type { CombatState, ItemType, Player } from "./types";
+import type { CombatState, Player } from "./types";
 import type { Rng } from "./rng";
-
-export interface CombatReward {
-  gold?: number;
-  warriors?: number;
-  items?: ItemType[];
-}
 
 /** Brigand strength tethered to the player's warriors: warriors ± (0–2). */
 export function rollBrigands(warriors: number, rng: Rng): number {
@@ -35,11 +29,7 @@ export function rollBrigands(warriors: number, rng: Rng): number {
   return Math.max(1, Math.min(99, count));
 }
 
-export function startBrigandCombat(
-  player: Player,
-  rng: Rng,
-  reward?: CombatReward
-): CombatState {
+export function startBrigandCombat(player: Player, rng: Rng): CombatState {
   const brigands = rollBrigands(player.warriors, rng);
   return {
     source: "brigands",
@@ -50,7 +40,6 @@ export function startBrigandCombat(
     rounds: [],
     over: player.warriors <= 0,
     playerWon: player.warriors <= 0 ? false : null,
-    reward,
   };
 }
 
@@ -68,8 +57,17 @@ export function startTowerCombat(player: Player, towerBrigands: number): CombatS
 }
 
 /** Resolve a single combat round, returning the next CombatState. */
-export function combatRound(combat: CombatState, rng: Rng): CombatState {
+export function combatRound(
+  combat: CombatState,
+  rng: Rng,
+  playerCount = 1
+): CombatState {
   if (combat.over) return combat;
+  // The ROM checks this before every round: multiplayer parties at two or
+  // fewer warriors automatically retreat, lose one, and never fall below one.
+  if (playerCount > 1 && combat.warriorsRemaining <= 2) {
+    return combatRetreat(combat, playerCount);
+  }
 
   const w = combat.warriorsRemaining;
   const b = combat.brigandsRemaining;
@@ -114,11 +112,12 @@ export function combatRound(combat: CombatState, rng: Rng): CombatState {
 }
 
 /** Retreat — lose a single warrior and end the fight (KILLONE). */
-export function combatRetreat(combat: CombatState): CombatState {
+export function combatRetreat(combat: CombatState, playerCount = 1): CombatState {
   if (combat.over) return combat;
+  const minimum = playerCount > 1 ? 1 : 0;
   return {
     ...combat,
-    warriorsRemaining: clampStat(combat.warriorsRemaining - 1),
+    warriorsRemaining: Math.max(minimum, clampStat(combat.warriorsRemaining - 1)),
     over: true,
     playerWon: false,
   };

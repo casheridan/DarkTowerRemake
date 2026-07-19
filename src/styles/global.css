@@ -64,6 +64,19 @@ body {
 #root {
   display: flex;
   flex-direction: column;
+  /* This is an appliance-style game UI, not a document. Prevent Chromium's
+     browsing/text caret from appearing when labels and counters are clicked. */
+  user-select: none;
+  -webkit-user-select: none;
+  caret-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: auto;
 }
 
 h1,

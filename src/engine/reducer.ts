@@ -6,10 +6,11 @@
  *   (consume food) → next player.
  */
 import { buildingOf, isCrossing, isLane, isTowerAdjacent, kingdomOf, neighborsOf } from "./board";
-import { applyFood, goldCapacity } from "./economy";
+import { applyFood, clampStat, dragonTake, goldCapacity } from "./economy";
 import { resolveMove } from "./encounters";
 import { resolveSanctuary } from "./sanctuary";
-import { resolveTomb } from "./tomb";
+import { resolveTomb, resolveTreasure } from "./tomb";
+import { landPegasus } from "./pegasus";
 import {
   bazaarHaggle,
   bazaarNo,
@@ -22,9 +23,7 @@ import {
   combatRound,
   startBrigandCombat,
   startTowerCombat,
-  type CombatReward,
 } from "./combat";
-import { ITEM_LABEL } from "./constants";
 import type {
   BuildingType,
   EventResult,
@@ -34,10 +33,11 @@ import type {
   Player,
 } from "./types";
 import type { Rng } from "./rng";
-import { clonePlayer, hasAllKeys, nextKey } from "./util";
+import { clonePlayer, hasAllKeys } from "./util";
 
 export type GameAction =
   | { type: "MOVE_TO"; to: string }
+  | { type: "PEGASUS_FLY"; to: string }
   | { type: "ACK_EVENT" }
   | { type: "SKIP_TURN" }
   | { type: "VISIT_SANCTUARY"; to?: string }
@@ -112,6 +112,42 @@ function endTurn(state: GameState): GameState {
   active.warriors = food.warriors;
   active.food = food.food;
 
+  if (food.starved) {
+    entries = log({ ...state, log: entries }, active.id, "Your provisions run dry — a warrior starves.");
+  } else if (food.lowFood) {
+    entries = log({ ...state, log: entries }, active.id, "Food supplies are running low.");
+  }
+
+  if (state.players.length > 1 && active.warriors <= 0) {
+    active.warriors = 1;
+    entries = log(
+      { ...state, log: entries },
+      active.id,
+      "One warrior survives to carry on your quest."
+    );
+  } else if (state.players.length === 1 && active.warriors <= 0) {
+    active.warriors = 0;
+    active.alive = false;
+    const message = "Your last warrior has fallen. Your score is 00.";
+    entries = log({ ...state, log: entries }, active.id, message);
+    return {
+      ...state,
+      players: replacePlayer(state.players, active),
+      combat: null,
+      bazaar: null,
+      towerStage: null,
+      winnerId: null,
+      log: entries,
+      lastEvent: {
+        kind: "starvation",
+        drum: "victory-warriors-brigands",
+        messages: [message],
+        playerDied: true,
+      },
+      phase: "gameOver",
+    };
+  }
+
   // Gold beyond what the warriors (and a Beast) can carry is left behind.
   const capacity = goldCapacity(active.warriors, active.inventory.has("beast"));
   if (active.gold > capacity) {
@@ -128,12 +164,6 @@ function endTurn(state: GameState): GameState {
   // turn counter (asm L414). Consume this turn's food first, then hand it back.
   const extraTurn = active.flags.lostWithScout;
   active.flags.lostWithScout = false;
-
-  if (food.starved) {
-    entries = log({ ...state, log: entries }, active.id, "Your provisions run dry — a warrior starves.");
-  } else if (food.lowFood) {
-    entries = log({ ...state, log: entries }, active.id, "Food supplies are running low.");
-  }
 
   let stateAfter: GameState = {
     ...state,
@@ -175,27 +205,85 @@ function commitEncounter(
   result: EventResult,
   extra: Partial<GameState> = {}
 ): GameState {
+  let settledPlayer = player;
+  let settledResult = result;
+
+  // SUBWARR never eliminates a player in multiplayer: one warrior survives.
+  if (state.players.length > 1 && settledPlayer.warriors <= 0) {
+    settledPlayer = clonePlayer(settledPlayer);
+    settledPlayer.warriors = 1;
+    settledResult = {
+      ...settledResult,
+      messages: [...settledResult.messages, "One warrior survives to carry on your quest."],
+    };
+  }
+
+  // In the ROM, reaching zero warriors in a one-player game immediately ends
+  // the game with a score of 00.
+  if (state.players.length === 1 && settledPlayer.warriors <= 0) {
+    settledPlayer = { ...settledPlayer, warriors: 0, alive: false };
+    settledResult = {
+      ...settledResult,
+      messages: [...settledResult.messages, "Your last warrior has fallen. Your score is 00."],
+      playerDied: true,
+    };
+    return {
+      ...state,
+      ...extra,
+      players: replacePlayer(state.players, settledPlayer),
+      combat: null,
+      bazaar: null,
+      towerStage: null,
+      winnerId: null,
+      log: withMessages(state, settledPlayer.id, settledResult.messages),
+      lastEvent: settledResult,
+      phase: "gameOver",
+    };
+  }
+
   return {
     ...state,
-    players: replacePlayer(state.players, player),
-    log: withMessages(state, player.id, result.messages),
-    lastEvent: result,
+    players: replacePlayer(state.players, settledPlayer),
+    log: withMessages(state, settledPlayer.id, settledResult.messages),
+    lastEvent: settledResult,
     phase: "encounter",
     ...extra,
   };
 }
 
-/** Curse a random rival of the active player (Wizard from a tomb). */
+/** Apply the ROM Wizard reward: steal a quarter and make the rival lose a turn. */
 function applyWizardCurse(state: GameState, rng: Rng): GameState {
-  const active = currentPlayer(state);
+  const active = clonePlayer(currentPlayer(state));
   const rivals = state.players.filter((p) => p.id !== active.id && p.alive && !p.won);
   if (rivals.length === 0) return state;
   const target = clonePlayer(rivals[rng.range(0, rivals.length - 1)]);
+  const stolenWarriors = dragonTake(target.warriors);
+  const stolenGold = dragonTake(target.gold);
+
+  target.warriors = clampStat(target.warriors - stolenWarriors);
+  target.gold = clampStat(target.gold - stolenGold);
   target.flags.cursed = true;
+  active.warriors = clampStat(active.warriors + stolenWarriors);
+  active.gold = clampStat(active.gold + stolenGold);
+  const message = `The Wizard curses ${target.name}: you steal ${stolenWarriors} warriors and ${stolenGold} gold, and ${target.name} loses a turn.`;
+
+  let players = replacePlayer(state.players, active);
+  players = replacePlayer(players, target);
   return {
     ...state,
-    players: replacePlayer(state.players, target),
-    log: log(state, target.id, `${target.name} has been cursed by the Wizard!`),
+    players,
+    log: log(state, active.id, message),
+    lastEvent: state.lastEvent
+      ? {
+          ...state.lastEvent,
+          messages: [...state.lastEvent.messages, message],
+          deltas: {
+            ...state.lastEvent.deltas,
+            warriors: (state.lastEvent.deltas?.warriors ?? 0) + stolenWarriors,
+            gold: (state.lastEvent.deltas?.gold ?? 0) + stolenGold,
+          },
+        }
+      : null,
   };
 }
 
@@ -205,16 +293,40 @@ function applyBazaar(
   step: (b: import("./types").BazaarState, p: Player) => BazaarOutcome
 ): GameState {
   if (state.phase !== "bazaar" || !state.bazaar) return state;
-  const outcome = step(state.bazaar, currentPlayer(state));
+  const before = currentPlayer(state);
+  const outcome = step(state.bazaar, before);
   if (outcome.ended) {
+    const purchase = outcome.purchase;
+    const result: EventResult = purchase
+      ? {
+          kind: "bazaar",
+          drum:
+            purchase.ware === "scout" || purchase.ware === "healer"
+              ? "scout-healer-gold"
+              : "warrior-food-beast",
+          messages: [outcome.ended],
+          deltas: {
+            gold: outcome.player.gold - before.gold,
+            warriors: outcome.player.warriors - before.warriors,
+            food: outcome.player.food - before.food,
+          },
+          itemsGained:
+            purchase.ware === "beast" ||
+            purchase.ware === "scout" ||
+            purchase.ware === "healer"
+              ? [purchase.ware]
+              : [],
+          purchase,
+        }
+      : {
+          kind: "bazaar",
+          drum: "wizard-bazaarclosed-keymissing",
+          messages: [outcome.ended],
+        };
     return commitEncounter(
       state,
       outcome.player,
-      {
-        kind: "bazaar",
-        drum: "wizard-bazaarclosed-keymissing",
-        messages: [outcome.ended],
-      },
+      result,
       { bazaar: null }
     );
   }
@@ -232,6 +344,7 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       const active = currentPlayer(state);
       const from = active.position;
       const to = action.to;
+
       // Must be an adjacent territory (the Tower is entered via OPEN_TOWER).
       if (to === "tower" || !neighborsOf(from).includes(to)) return state;
 
@@ -267,35 +380,32 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
         });
       }
 
-      // Stepping OFF a frontier into a kingdom. Forward-only: you may only enter
-      // a kingdom you're not already tied to and didn't come from — never back.
+      // Stepping OFF a frontier is a normal territory move. First establish the
+      // new kingdom/key state, then run the same DOMOVE encounter table used by
+      // every other destination. Forward-only still applies.
+      const moved = clonePlayer(active);
       if (fromLane) {
         const targetKingdom = kingdomOf(to);
         if (targetKingdom === active.lastKingdom || targetKingdom === active.previousKingdom) {
           return state; // the frontier is one-way — no going back
         }
-        const moved = clonePlayer(active);
-        moved.position = to;
         moved.previousKingdom = active.lastKingdom;
         moved.lastKingdom = targetKingdom;
         moved.flags.regionKeyAvailable = !allKeys; // the new region owes a key
         moved.flags.citadelVisited = false;
-        const dest = targetKingdom.charAt(0).toUpperCase() + targetKingdom.slice(1);
-        return commitEncounter(state, moved, {
-          kind: "frontier",
-          drum: "goldkey-silverkey-brasskey",
-          messages: [
-            `You cross the frontier into ${dest}.`,
-            allKeys ? "With all three keys, you travel freely." : "Seek this kingdom's key.",
-          ],
-        });
       }
 
-      // Normal move within a kingdom: arrive, then roll the encounter.
-      const moved = clonePlayer(active);
+      // Arrive, then roll the normal movement encounter.
       moved.position = to;
       const res = resolveMove(moved, state.dragonHoard, rng, from);
-      if (!isLane(res.player.position)) {
+      if (fromLane && res.player.position === from) {
+        // Lost without a Scout cancels the crossing completely. Restore the
+        // frontier-side kingdom metadata along with the pawn's lane position.
+        res.player.lastKingdom = active.lastKingdom;
+        res.player.previousKingdom = active.previousKingdom;
+        res.player.flags.regionKeyAvailable = active.flags.regionKeyAvailable;
+        res.player.flags.citadelVisited = active.flags.citadelVisited;
+      } else if (!isLane(res.player.position)) {
         res.player.lastKingdom = kingdomOf(res.player.position);
       }
       const next = commitEncounter(state, res.player, res.result, { dragonHoard: res.dragonHoard });
@@ -303,6 +413,21 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
         return { ...next, phase: "combat", combat: startBrigandCombat(res.player, rng) };
       }
       return next;
+    }
+
+    case "PEGASUS_FLY": {
+      if (state.phase !== "playing") return state;
+      const active = currentPlayer(state);
+      const moved = landPegasus(active, action.to);
+      if (!moved) return state;
+      const destination = kingdomOf(action.to);
+      const name = destination.charAt(0).toUpperCase() + destination.slice(1);
+      const landed = {
+        ...state,
+        players: replacePlayer(state.players, moved),
+        log: log(state, active.id, `Your Pegasus lands in ${name}. The flight ends your turn.`),
+      };
+      return endTurn(landed);
     }
 
     case "VISIT_SANCTUARY": {
@@ -327,13 +452,8 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       let next = commitEncounter(state, res.player, res.result);
       if (res.castWizard) next = applyWizardCurse(next, rng);
       if (res.startCombat) {
-        // Brigands guard the tomb — its treasure is the reward for victory.
-        const key = res.player.flags.regionKeyAvailable ? nextKey(res.player) : null;
-        const reward: CombatReward = {
-          gold: rng.range(13, 20),
-          items: key ? [key] : [],
-        };
-        return { ...next, phase: "combat", combat: startBrigandCombat(res.player, rng, reward) };
+        // The ROM only rolls the shared treasure table after the fight is won.
+        return { ...next, phase: "combat", combat: startBrigandCombat(res.player, rng) };
       }
       return next;
     }
@@ -364,39 +484,43 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
 
     case "COMBAT_ROUND": {
       if (state.phase !== "combat" || !state.combat) return state;
-      return { ...state, combat: combatRound(state.combat, rng) };
+      return { ...state, combat: combatRound(state.combat, rng, state.players.length) };
     }
 
     case "COMBAT_RETREAT": {
       if (state.phase !== "combat" || !state.combat) return state;
-      return { ...state, combat: combatRetreat(state.combat) };
+      return { ...state, combat: combatRetreat(state.combat, state.players.length) };
     }
 
     case "COMBAT_END": {
       if (state.phase !== "combat" || !state.combat || !state.combat.over) return state;
       const combat = state.combat;
-      const player = clonePlayer(currentPlayer(state));
+      let player = clonePlayer(currentPlayer(state));
       player.warriors = combat.warriorsRemaining;
 
       const messages: string[] = [];
+      if (combat.playerWon && combat.source === "brigands") {
+        const treasure = resolveTreasure(player, rng, "combat");
+        player = treasure.player;
+        const result: EventResult = {
+          ...treasure.result,
+          messages: ["You rout the brigands!", ...treasure.result.messages],
+        };
+        let rewarded = commitEncounter(
+          { ...state, combat: null, towerStage: null },
+          player,
+          result
+        );
+        if (treasure.castWizard) rewarded = applyWizardCurse(rewarded, rng);
+        return rewarded;
+      }
+
       if (combat.playerWon) {
         messages.push(
           combat.source === "tower"
             ? "The Dark Tower falls! Evil is vanquished!"
             : "You rout the brigands!"
         );
-        if (combat.reward) {
-          if (combat.reward.gold) {
-            player.gold = Math.min(99, player.gold + combat.reward.gold);
-            messages.push(`Spoils of war: +${combat.reward.gold} gold.`);
-          }
-          if (combat.reward.warriors) player.warriors = Math.min(99, player.warriors + combat.reward.warriors);
-          for (const item of combat.reward.items ?? []) {
-            player.inventory.add(item);
-            if (item.endsWith("Key")) player.flags.regionKeyAvailable = false;
-            messages.push(`You claim the ${ITEM_LABEL[item]}!`);
-          }
-        }
       } else {
         messages.push(
           combat.source === "tower"

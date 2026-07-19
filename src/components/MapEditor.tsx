@@ -38,7 +38,13 @@ import {
   type TerritoryType,
 } from "../engine";
 import { BUILDING_META, KINGDOM_META } from "../ui/labels";
-import { clearMap, loadMap, saveMap } from "../store/mapStorage";
+import {
+  clearMap,
+  loadMap,
+  parseMapJson,
+  saveMap,
+  serializeMap,
+} from "../store/mapStorage";
 import { useGame } from "../store/useGame";
 import "./MapEditor.css";
 
@@ -134,6 +140,11 @@ interface View {
   w: number;
 }
 
+interface EditorNotice {
+  text: string;
+  tone: "error" | "success";
+}
+
 export function MapEditor() {
   const setEditing = useGame((s) => s.setEditing);
   const saved = useMemo(() => loadMap(), []);
@@ -154,7 +165,9 @@ export function MapEditor() {
   const [hoverSnap, setHoverSnap] = useState<DraftPt | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [linkFrom, setLinkFrom] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNoticeState] = useState<EditorNotice | null>(null);
+  const setNotice = (text: string | null, tone: EditorNotice["tone"] = "error") =>
+    setNoticeState(text ? { text, tone } : null);
   const dragIndex = useRef<number | null>(null); // seed being dragged (seed mode)
   const kingdomPainting = useRef(false); // dragging the Kingdom brush across cells
   const vertexDrag = useRef<{ rid: string; idx: number } | null>(null);
@@ -163,6 +176,7 @@ export function MapEditor() {
     null
   );
   const svgRef = useRef<SVGSVGElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const drawnMode = regions.length > 0;
 
@@ -673,7 +687,7 @@ export function MapEditor() {
     startDefault();
   };
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify({ version: 2, ...map }, null, 2)], {
+    const blob = new Blob([serializeMap(map, true)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -682,6 +696,29 @@ export function MapEditor() {
     a.download = "darktower-map.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+  const importJson = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    try {
+      const imported = parseMapJson(await file.text());
+      setSeeds(imported.seeds);
+      setRegions(imported.regions ?? []);
+      setLinks(imported.links);
+      setTowerRadius(imported.towerRadius);
+      setFrontierWidth(imported.frontierWidth ?? DEFAULT_FRONTIER_WIDTH);
+      setFrontierRotation(imported.frontierRotation ?? 0);
+      setDraft([]);
+      setHoverSnap(null);
+      setLinkFrom(null);
+      setSelectedRegion(null);
+      setNotice(`Imported ${file.name}. Review the map, then Save to keep it.`, "success");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "The map could not be imported.");
+    }
   };
 
   const linkLines = useMemo(() => {
@@ -1033,7 +1070,14 @@ export function MapEditor() {
           )}
         </div>
 
-        {notice && <div className="editor__notice">{notice}</div>}
+        {notice && (
+          <div
+            className={`editor__notice editor__notice--${notice.tone}`}
+            role={notice.tone === "error" ? "alert" : "status"}
+          >
+            {notice.text}
+          </div>
+        )}
 
         {(tool === "draw" || tool === "place") && (
           <div className="editor__group">
@@ -1188,6 +1232,16 @@ export function MapEditor() {
           </button>
           <button className="ed-btn" onClick={clearAll}>
             Clear all
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={importJson}
+            hidden
+          />
+          <button className="ed-btn" onClick={() => importInputRef.current?.click()}>
+            Import JSON
           </button>
           <button className="ed-btn" onClick={exportJson}>
             Export JSON
