@@ -29,7 +29,8 @@ npm run build    # production build
 |---|---|---|
 | Move events | Lost 18.75% · Dragon 12.5% · Plague 18.75% · Brigands 18.75% · Safe 31.25% (uniform 0–15 roll) | `DOMOVE` ~2107–2548 |
 | Brigand combat | Enemy count = `warriors ± random(0–2)` with ROM weighting 6:5:5; each round strength = `warriors × random(1–4)` over `random(1–4)` sub-rounds; win → brigands halve, lose → −1 warrior; multiplayer preserves one survivor | `L800`/`L840`/`L880` ~2937–3235 |
-| Dragon | Takes ¼ gold + ¼ warriors (no Sword); with a Sword, win its hoard and the Sword is spent | `L6C0` ~2450 |
+| Dragon | Takes ¼ gold + ¼ warriors (no Sword); with a Sword, win its hoard and the Sword is spent; after either outcome, the attacker relocates its board-blocking marker to an empty normal territory | `L6C0` ~2450 + board-game rules |
+| Wizard | After Tomb/Ruin treasure, cycle through eligible rivals and choose one to lose the ROM-weighted ¼ of gold and warriors; Clear declines the curse | `L6C0` weighting + board-game rules |
 | Plague | −2 warriors (negated by Healer) | ~2317 |
 | Food | `ceil(warriors / 15)` per turn; starvation = food→0 and −1 warrior | ~1648–1745 |
 | Sanctuary / Citadel | Warriors ≤4 → +5–8; own Citadel (first visit) doubles 5–24 warriors; gold ≤7 → +9–16; food ≤5 → +9–16 | `DOSANCT` ~2651–2808 |
@@ -39,11 +40,12 @@ npm run build    # production build
 | Pegasus | One-use token: land in the current or next kingdom; landing ends the turn, so its building waits until the next | `L97A` reward path + original instructions |
 | Tower defenders | L1 17–32 · L2 33–64 · L3 17–64 | ~400 / setup |
 | Key riddle | Secret per-game key order, deduced via positional feedback | Dark Tower entry |
+| Final score | `clamp(176 + defenders + L6C0(defenders) − 8 × (completed turns + warriors committed), 0, 99)` | `LFFF` ~5490 |
 
 ## Architecture
 
 A **pure, framework-free game engine** (`src/engine/`) holds all the ROM-faithful logic and
-is covered by 132 unit/statistical tests. A thin Zustand store (`src/store/`) wraps the engine
+is covered by 143 unit/statistical tests. A thin Zustand store (`src/store/`) wraps the engine
 reducer; React components (`src/components/`) render the board, tower, HUD, bazaar, combat, and
 endgame. The audio layer (`src/audio/`) selects lightweight Web Audio recreation or cached
 original local tower captures, retaining synthesis as a fallback if a clip cannot be loaded.

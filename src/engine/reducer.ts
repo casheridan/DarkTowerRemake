@@ -11,6 +11,8 @@ import { resolveMove } from "./encounters";
 import { resolveSanctuary } from "./sanctuary";
 import { resolveTomb, resolveTreasure } from "./tomb";
 import { landPegasus } from "./pegasus";
+import { dragonPlacementTerritories, isDragonBlocked } from "./dragon";
+import { calculateScore } from "./score";
 import {
   bazaarHaggle,
   bazaarNo,
@@ -47,6 +49,10 @@ export type GameAction =
   | { type: "BAZAAR_NO" }
   | { type: "BAZAAR_HAGGLE" }
   | { type: "LEAVE_BAZAAR" }
+  | { type: "WIZARD_NEXT" }
+  | { type: "WIZARD_CONFIRM" }
+  | { type: "WIZARD_CANCEL" }
+  | { type: "DRAGON_PLACE"; to: string }
   | { type: "COMBAT_ROUND" }
   | { type: "COMBAT_RETREAT" }
   | { type: "COMBAT_END" }
@@ -128,6 +134,7 @@ function endTurn(state: GameState): GameState {
   } else if (state.players.length === 1 && active.warriors <= 0) {
     active.warriors = 0;
     active.alive = false;
+    active.score = 0;
     const message = "Your last warrior has fallen. Your score is 00.";
     entries = log({ ...state, log: entries }, active.id, message);
     return {
@@ -164,12 +171,15 @@ function endTurn(state: GameState): GameState {
   // turn counter (asm L414). Consume this turn's food first, then hand it back.
   const extraTurn = active.flags.lostWithScout;
   active.flags.lostWithScout = false;
+  if (!extraTurn) active.turnsTaken += 1;
 
   let stateAfter: GameState = {
     ...state,
     players: replacePlayer(state.players, active),
     log: entries,
     bazaar: null,
+    wizardSelection: null,
+    dragonPlacement: null,
   };
 
   if (extraTurn) {
@@ -221,7 +231,7 @@ function commitEncounter(
   // In the ROM, reaching zero warriors in a one-player game immediately ends
   // the game with a score of 00.
   if (state.players.length === 1 && settledPlayer.warriors <= 0) {
-    settledPlayer = { ...settledPlayer, warriors: 0, alive: false };
+    settledPlayer = { ...settledPlayer, warriors: 0, alive: false, score: 0 };
     settledResult = {
       ...settledResult,
       messages: [...settledResult.messages, "Your last warrior has fallen. Your score is 00."],
@@ -233,6 +243,8 @@ function commitEncounter(
       players: replacePlayer(state.players, settledPlayer),
       combat: null,
       bazaar: null,
+      wizardSelection: null,
+      dragonPlacement: null,
       towerStage: null,
       winnerId: null,
       log: withMessages(state, settledPlayer.id, settledResult.messages),
@@ -251,12 +263,39 @@ function commitEncounter(
   };
 }
 
-/** Apply the ROM Wizard reward: steal a quarter and make the rival lose a turn. */
-function applyWizardCurse(state: GameState, rng: Rng): GameState {
+/** Enter the ROM's C–P# rival-selection prompt after a Wizard reward. */
+function beginWizardSelection(state: GameState): GameState {
+  const active = currentPlayer(state);
+  const candidateIds = state.players
+    .filter((player) => player.id !== active.id && player.alive && !player.won)
+    .map((player) => player.id);
+
+  if (candidateIds.length === 0) {
+    const message = "The Wizard finds no rival to curse.";
+    return {
+      ...state,
+      log: log(state, active.id, message),
+      lastEvent: state.lastEvent
+        ? { ...state.lastEvent, messages: [...state.lastEvent.messages, message] }
+        : null,
+    };
+  }
+
+  return {
+    ...state,
+    phase: "wizard",
+    wizardSelection: { candidateIds, index: 0 },
+  };
+}
+
+/** Apply the ROM Wizard reward: steal a quarter and make the chosen rival lose a turn. */
+function applyWizardCurse(state: GameState, targetId: number): GameState {
   const active = clonePlayer(currentPlayer(state));
-  const rivals = state.players.filter((p) => p.id !== active.id && p.alive && !p.won);
-  if (rivals.length === 0) return state;
-  const target = clonePlayer(rivals[rng.range(0, rivals.length - 1)]);
+  const selected = state.players.find(
+    (player) => player.id === targetId && player.id !== active.id && player.alive && !player.won
+  );
+  if (!selected) return state;
+  const target = clonePlayer(selected);
   const stolenWarriors = dragonTake(target.warriors);
   const stolenGold = dragonTake(target.gold);
 
@@ -272,6 +311,8 @@ function applyWizardCurse(state: GameState, rng: Rng): GameState {
   return {
     ...state,
     players,
+    phase: "encounter",
+    wizardSelection: null,
     log: log(state, active.id, message),
     lastEvent: state.lastEvent
       ? {
@@ -284,6 +325,31 @@ function applyWizardCurse(state: GameState, rng: Rng): GameState {
           },
         }
       : null,
+  };
+}
+
+function cancelWizardCurse(state: GameState): GameState {
+  const active = currentPlayer(state);
+  const message = "You release the Wizard without cursing a rival.";
+  return {
+    ...state,
+    phase: "encounter",
+    wizardSelection: null,
+    log: log(state, active.id, message),
+    lastEvent: state.lastEvent
+      ? { ...state.lastEvent, messages: [...state.lastEvent.messages, message] }
+      : null,
+  };
+}
+
+/** Pause an otherwise-resolved encounter while the attacked player moves the pawn. */
+function beginDragonPlacement(state: GameState): GameState {
+  const candidateIds = dragonPlacementTerritories(state);
+  if (candidateIds.length === 0) return state;
+  return {
+    ...state,
+    phase: "dragonPlacement",
+    dragonPlacement: { candidateIds },
   };
 }
 
@@ -344,6 +410,8 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       const active = currentPlayer(state);
       const from = active.position;
       const to = action.to;
+
+      if (isDragonBlocked(state, to)) return state;
 
       // Must be an adjacent territory (the Tower is entered via OPEN_TOWER).
       if (to === "tower" || !neighborsOf(from).includes(to)) return state;
@@ -408,15 +476,17 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       } else if (!isLane(res.player.position)) {
         res.player.lastKingdom = kingdomOf(res.player.position);
       }
-      const next = commitEncounter(state, res.player, res.result, { dragonHoard: res.dragonHoard });
+      let next = commitEncounter(state, res.player, res.result, { dragonHoard: res.dragonHoard });
       if (res.startCombat) {
         return { ...next, phase: "combat", combat: startBrigandCombat(res.player, rng) };
       }
+      if (res.event === "dragon") next = beginDragonPlacement(next);
       return next;
     }
 
     case "PEGASUS_FLY": {
       if (state.phase !== "playing") return state;
+      if (isDragonBlocked(state, action.to)) return state;
       const active = currentPlayer(state);
       const moved = landPegasus(active, action.to);
       if (!moved) return state;
@@ -450,7 +520,7 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       // A tomb run re-arms the citadel-doubling bonus.
       res.player.flags.citadelVisited = false;
       let next = commitEncounter(state, res.player, res.result);
-      if (res.castWizard) next = applyWizardCurse(next, rng);
+      if (res.castWizard) next = beginWizardSelection(next);
       if (res.startCombat) {
         // The ROM only rolls the shared treasure table after the fight is won.
         return { ...next, phase: "combat", combat: startBrigandCombat(res.player, rng) };
@@ -482,6 +552,37 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
       return endTurn({ ...state, bazaar: null });
     }
 
+    case "WIZARD_NEXT": {
+      if (state.phase !== "wizard" || !state.wizardSelection) return state;
+      const { candidateIds, index } = state.wizardSelection;
+      return {
+        ...state,
+        wizardSelection: { candidateIds, index: (index + 1) % candidateIds.length },
+      };
+    }
+
+    case "WIZARD_CONFIRM": {
+      if (state.phase !== "wizard" || !state.wizardSelection) return state;
+      const targetId = state.wizardSelection.candidateIds[state.wizardSelection.index];
+      return applyWizardCurse(state, targetId);
+    }
+
+    case "WIZARD_CANCEL": {
+      if (state.phase !== "wizard" || !state.wizardSelection) return state;
+      return cancelWizardCurse(state);
+    }
+
+    case "DRAGON_PLACE": {
+      if (state.phase !== "dragonPlacement" || !state.dragonPlacement) return state;
+      if (!state.dragonPlacement.candidateIds.includes(action.to)) return state;
+      return {
+        ...state,
+        phase: "encounter",
+        dragonPosition: action.to,
+        dragonPlacement: null,
+      };
+    }
+
     case "COMBAT_ROUND": {
       if (state.phase !== "combat" || !state.combat) return state;
       return { ...state, combat: combatRound(state.combat, rng, state.players.length) };
@@ -511,7 +612,7 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
           player,
           result
         );
-        if (treasure.castWizard) rewarded = applyWizardCurse(rewarded, rng);
+        if (treasure.castWizard) rewarded = beginWizardSelection(rewarded);
         return rewarded;
       }
 
@@ -531,7 +632,15 @@ export function reduce(state: GameState, action: GameAction, rng: Rng): GameStat
 
       // Tower victory ends the game.
       if (combat.source === "tower" && combat.playerWon) {
-        const won = { ...player, won: true };
+        const won = {
+          ...player,
+          won: true,
+          score: calculateScore({
+            towerBrigands: combat.brigands,
+            turnsTaken: player.turnsTaken,
+            warriorsAtTower: combat.warriorsAtStart,
+          }),
+        };
         return {
           ...state,
           players: replacePlayer(state.players, won),

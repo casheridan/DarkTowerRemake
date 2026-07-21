@@ -70,6 +70,10 @@ export interface Player {
 
   alive: boolean;
   won: boolean;
+  /** Completed ordinary turns; a Scout continuation remains part of one turn. */
+  turnsTaken: number;
+  /** ROM-calculated two-digit result, assigned only when this player finishes. */
+  score: number | null;
 }
 
 /** What kind of move-event fired (the DOMOVE 16ths table). */
@@ -93,6 +97,8 @@ export type GamePhase =
   | "bazaar"
   | "sanctuary"
   | "tomb"
+  | "wizard" // choosing which rival receives a Wizard curse
+  | "dragonPlacement" // placing the physical Dragon blocker after an attack
   | "frontier"
   | "darkTower" // final battle sequence
   | "gameOver";
@@ -116,6 +122,11 @@ export interface GameState {
    */
   dragonHoard: { warriors: number; gold: number };
 
+  /** Territory occupied by the physical Dragon pawn, blocking entry. */
+  dragonPosition: string | null;
+  /** Legal destinations awaiting selection after the most recent attack. */
+  dragonPlacement: { candidateIds: string[] } | null;
+
   winnerId: number | null;
 
   /** Dark Tower endgame stage when the active player is at the Tower. */
@@ -130,11 +141,21 @@ export interface GameState {
   /** Active bazaar visit, if any. */
   bazaar: BazaarState | null;
 
+  /** Pending rival choice after finding a Wizard in multiplayer. */
+  wizardSelection: WizardSelectionState | null;
+
   /** Rolling event log (most recent last) for the UI to narrate. */
   log: LogEntry[];
 
   /** The most recent resolved event, surfaced to the UI for animation. */
   lastEvent: EventResult | null;
+}
+
+export interface WizardSelectionState {
+  /** Eligible rivals in the same order as the physical tower's player cycle. */
+  candidateIds: number[];
+  /** Index of the rival currently shown as C–P# on the display. */
+  index: number;
 }
 
 export interface LogEntry {

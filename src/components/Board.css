@@ -93,6 +93,19 @@
   fill-opacity: 1;
   stroke: #fff;
 }
+.terr--dragon-target {
+  cursor: crosshair;
+  fill-opacity: 0.92;
+  stroke: #ff784f;
+  stroke-width: 3.5;
+  stroke-dasharray: 5 3;
+  animation: dragonTargetPulse 1.1s ease-in-out infinite;
+}
+.terr--dragon-blocked {
+  fill-opacity: 0.75;
+  stroke: #4b1710;
+  stroke-width: 4;
+}
 .terr--here {
   fill-opacity: 0.92;
   stroke: #fff;
@@ -107,6 +120,12 @@
   50% {
     stroke-opacity: 0.4;
     stroke-dashoffset: 11;
+  }
+}
+@keyframes dragonTargetPulse {
+  50% {
+    stroke: #ffd0bd;
+    stroke-opacity: 0.55;
   }
 }
 
@@ -160,6 +179,19 @@
 }
 
 /* Pawns */
+.board__dragon {
+  pointer-events: none;
+  filter: drop-shadow(0 3px 5px rgba(40, 5, 0, 0.75));
+}
+.board__dragon-disc {
+  fill: #48150f;
+  stroke: #ff8a62;
+  stroke-width: 2;
+}
+.board__dragon-icon {
+  font-size: 19px;
+}
+
 .board__pawn {
   stroke: #0c0a10;
   stroke-width: 2;

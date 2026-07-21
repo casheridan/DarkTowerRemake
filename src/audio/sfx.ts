@@ -411,9 +411,9 @@ const synth = {
   gold: () => melody([[N.C5, 0.06], [N.E5, 0.06], [N.G5, 0.09]], { gain: 0.13 }),
   key: () => melody([[N.C5, 0.09], [N.E5, 0.09], [N.G5, 0.09], [N.C6, 0.2]], { gain: 0.16 }),
   pegasus: () => timedMelody(
-    [[0, 0.03], [midi(63), 0.06], [midi(65), 0.07], [midi(66), 0.07], [0, 0.03],
-      [midi(58), 0.04], [midi(71), 0.09], [midi(75), 0.05], [midi(66), 0.09],
-      [0, 0.17], [midi(73), 0.052]],
+    [[0, 0.03], [midi(74), 0.04], [midi(75), 0.04], [midi(77), 0.06], [0, 0.03],
+      [midi(67), 0.06], [midi(69), 0.08], [midi(71), 0.08], [midi(84), 0.06],
+      [0, 0.17], [midi(88), 0.12]],
     CLEAN_CUE_SECONDS.pegasus,
     { gain: 0.14 }
   ),
@@ -438,12 +438,12 @@ const synth = {
     { type: "sawtooth", gain: 0.1 }
   ),
   winRound: () => timedMelody(
-    [[midi(61), 0.27], [midi(68), 0.469]],
+    [[midi(73), 0.28], [midi(68), 0.459]],
     CLEAN_CUE_SECONDS.winRound,
     { gain: 0.15 }
   ),
   loseRound: () => timedMelody(
-    [[midi(61), 0.57], [midi(56), 0.663]],
+    [[midi(73), 0.57], [midi(68), 0.663]],
     CLEAN_CUE_SECONDS.loseRound,
     { gain: 0.15 }
   ),
@@ -451,76 +451,79 @@ const synth = {
   dragonKill: () => timedMelody(
     [
       ...Array.from({ length: 12 }, () => [[midi(84), 0.065], [0, 0.025]] as const).flat(),
-      [midi(61), 0.09], [midi(69), 0.07], [midi(66), 0.11], [midi(63), 0.12],
-      [midi(61), 0.12], [midi(59), 0.12], [midi(58), 0.08], [midi(57), 0.14],
-      [midi(56), 0.11], [midi(55), 0.05], [midi(54), 0.17], [midi(53), 0.14],
-      [midi(52), 0.3], [midi(51), 0.17], [midi(50), 1.04],
+      [midi(77), 0.04], [midi(72), 0.04], [midi(69), 0.06], [midi(78), 0.04],
+      [midi(77), 0.04], [midi(75), 0.08], [midi(73), 0.08], [midi(72), 0.04],
+      [midi(71), 0.1], [midi(70), 0.04], [midi(69), 0.14], [midi(68), 0.1],
+      [midi(74), 0.06], [midi(73), 0.12], [midi(72), 0.24], [midi(71), 0.04],
+      [midi(70), 0.32], [midi(69), 1.0],
     ],
     CLEAN_CUE_SECONDS.dragonKill,
     { gain: 0.17 }
   ),
   lost: () => timedMelody(
-    [[midi(61), 0.12], [midi(69), 0.15], [midi(65), 0.17], [midi(63), 0.21],
-      [midi(60), 0.26], [midi(58), 0.28], [midi(56), 0.3], [midi(55), 0.38]],
+    [[midi(78), 0.08], [midi(72), 0.12], [midi(69), 0.16], [midi(77), 0.16],
+      [midi(74), 0.2], [midi(72), 0.24], [midi(70), 0.28], [midi(69), 0.28],
+      [midi(74), 0.32]],
     CLEAN_CUE_SECONDS.lost,
     { gain: 0.16 }
   ),
   plague: () => timedMelody(
-    [[midi(56), 1.11], [midi(59), 0.21], [midi(58), 0.46], [midi(56), 0.48],
-      [midi(55), 0.26], [midi(56), 0.28]],
+    [[midi(68), 1.11], [midi(71), 0.21], [midi(70), 0.46], [midi(68), 0.48],
+      [midi(67), 0.26], [midi(68), 0.28]],
     CLEAN_CUE_SECONDS.plague,
     { gain: 0.17 }
   ),
   starving: () => timedMelody(
-    [[midi(57), 0.065], [midi(59), 0.065], [midi(61), 0.065], [midi(63), 0.065],
-      [0, 0.155], [midi(57), 0.07], [midi(59), 0.07], [midi(61), 0.06],
-      [midi(63), 0.05], [midi(66), 0.055], [midi(68), 0.055], [0, 0.08],
-      [midi(57), 0.07], [midi(59), 0.07], [midi(61), 0.07], [midi(63), 0.05],
-      [midi(66), 0.05], [midi(68), 0.05], [midi(72), 0.07]],
+    [[midi(69), 0.065], [midi(71), 0.065], [midi(73), 0.065], [midi(75), 0.065],
+      [0, 0.155], [midi(69), 0.07], [midi(71), 0.07], [midi(73), 0.06],
+      [midi(75), 0.05], [midi(78), 0.055], [midi(80), 0.055], [0, 0.08],
+      [midi(69), 0.07], [midi(71), 0.07], [midi(73), 0.07], [midi(75), 0.05],
+      [midi(78), 0.05], [midi(80), 0.05], [midi(84), 0.07]],
     CLEAN_CUE_SECONDS.starving,
     { gain: 0.16 }
   ),
   bazaar: () => timedMelody(
-    [[midi(56), 0.39], [midi(59), 0.34], [midi(62), 0.28], [midi(63), 0.26],
-      [midi(62), 0.26], [midi(59), 0.33], [midi(62), 0.28], [midi(63), 0.25],
-      [midi(62), 0.6]],
+    [[midi(68), 0.39], [midi(71), 0.34], [midi(74), 0.28], [midi(75), 0.26],
+      [midi(74), 0.26], [midi(71), 0.33], [midi(74), 0.28], [midi(75), 0.25],
+      [midi(74), 0.6]],
     CLEAN_CUE_SECONDS.bazaar,
     { gain: 0.14 }
   ),
   failure: () => timedMelody(
-    [[midi(61), 0.12], [midi(69), 0.15], [midi(65), 0.17], [midi(63), 0.21],
-      [midi(60), 0.26], [midi(58), 0.28], [midi(56), 0.3], [midi(55), 0.38]],
+    [[midi(78), 0.08], [midi(72), 0.12], [midi(69), 0.16], [midi(77), 0.16],
+      [midi(74), 0.2], [midi(72), 0.24], [midi(70), 0.28], [midi(69), 0.28],
+      [midi(74), 0.32]],
     CLEAN_CUE_SECONDS.bazaarClosed,
     { gain: 0.16 }
   ),
   keyMissing: () => timedMelody(
-    [[midi(61), 0.57], [midi(56), 0.663]],
+    [[midi(73), 0.57], [midi(68), 0.663]],
     CLEAN_CUE_SECONDS.loseRound,
     { gain: 0.16 }
   ),
   sanctuary: () => patternedTone(
-    [midi(87), midi(90), midi(83)],
+    [midi(83), midi(87), midi(91)],
     CLEAN_CUE_SECONDS.sanctuary,
     0.023,
     { gain: 0.13 }
   ),
   frontier: () => timedMelody(
-    [[midi(73), 0.07], [0, 0.03], [midi(75), 0.07], [midi(60), 0.05],
-      [midi(73), 0.07], [0, 0.03], [midi(75), 0.07], [midi(60), 0.05],
-      [midi(73), 0.07], [0, 0.03], [midi(75), 0.07], [midi(60), 0.05],
-      [midi(73), 0.07], [0, 0.03], [midi(75), 0.07], [midi(60), 0.1]],
+    [[midi(72), 0.1], [midi(74), 0.08], [midi(79), 0.06],
+      [midi(72), 0.1], [midi(74), 0.08], [midi(79), 0.06],
+      [midi(72), 0.1], [midi(74), 0.08], [midi(79), 0.06],
+      [midi(72), 0.1], [midi(74), 0.08], [midi(79), 0.08]],
     CLEAN_CUE_SECONDS.frontier,
     { gain: 0.15 }
   ),
   darkTower: () => timedMelody(
-    [[midi(57), 0.19], [midi(59), 0.19], [midi(61), 0.18], [midi(59), 0.19],
-      [midi(57), 0.2], [midi(59), 0.2], [midi(61), 0.22], [0, 0.13],
-      [midi(57), 1.276]],
+    [[midi(69), 0.19], [midi(71), 0.19], [midi(73), 0.18], [midi(71), 0.19],
+      [midi(69), 0.2], [midi(71), 0.2], [midi(73), 0.22], [0, 0.13],
+      [midi(69), 1.276]],
     CLEAN_CUE_SECONDS.darkTower,
     { gain: 0.18 }
   ),
   endTurn: () => timedMelody(
-    [[midi(61), 0.1], [midi(73), 0.12], [0, 0.02], [midi(84), 0.128]],
+    [[midi(73), 0.1], [midi(72), 0.14], [0, 0.02], [midi(84), 0.108]],
     CLEAN_CUE_SECONDS.endTurn,
     { gain: 0.12 }
   ),
@@ -537,10 +540,10 @@ const synth = {
     { type: "sawtooth", gain: 0.1 }
   ),
   victory: () => timedMelody(
-    [[midi(57), 0.45], [midi(52), 0.43], [midi(57), 0.15], [midi(52), 0.17],
-      [midi(57), 0.17], [midi(60), 0.41], [midi(57), 0.34], [midi(60), 0.13],
-      [midi(57), 0.12], [midi(60), 0.15], [midi(64), 0.43], [midi(52), 0.34],
-      [midi(57), 0.17], [midi(52), 0.18], [midi(57), 0.16], [midi(61), 1.0]],
+    [[midi(69), 0.45], [midi(71), 0.43], [midi(69), 0.15], [midi(71), 0.17],
+      [midi(69), 0.17], [midi(72), 0.41], [midi(69), 0.34], [midi(72), 0.13],
+      [midi(69), 0.12], [midi(72), 0.15], [midi(76), 0.43], [midi(71), 0.34],
+      [midi(69), 0.17], [midi(71), 0.18], [midi(69), 0.16], [midi(73), 1.0]],
     CLEAN_CUE_SECONDS.victory,
     { gain: 0.2 }
   ),

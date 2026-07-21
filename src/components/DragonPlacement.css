@@ -1,0 +1,33 @@
+.dragon-place {
+  background: linear-gradient(180deg, #2a1714, #120b0a);
+  border: 1px solid #b95b3f;
+  border-radius: 14px;
+  padding: 1.1rem;
+  text-align: center;
+  box-shadow: 0 0 26px rgba(185, 91, 63, 0.22);
+}
+
+.dragon-place__title {
+  color: #ff9a70;
+  font-size: 1.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.dragon-place__intro,
+.dragon-place__hint {
+  color: var(--dt-text-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.dragon-place__count {
+  width: fit-content;
+  margin: 0.9rem auto;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #733a2b;
+  border-radius: 8px;
+  color: #ffc1a6;
+  background: rgba(89, 36, 25, 0.3);
+  font-family: var(--dt-font-display);
+  font-size: 0.78rem;
+}

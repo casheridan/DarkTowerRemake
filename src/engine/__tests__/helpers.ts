@@ -34,6 +34,8 @@ export function makeTestPlayer(overrides: PlayerOverrides = {}): Player {
     food: STARTING_FOOD,
     alive: true,
     won: false,
+    turnsTaken: 0,
+    score: null,
     ...rest,
     inventory: new Set<ItemType>(inventory ?? []),
     flags: {

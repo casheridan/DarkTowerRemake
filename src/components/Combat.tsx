@@ -3,14 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { mustRetreat, type GameState } from "../engine";
 import { useGame } from "../store/useGame";
-import { CLEAN_CUE_SECONDS } from "../audio/sfx";
 import { towerArtFrame } from "../ui/towerArt";
+import { combatCueSeconds, combatStepDelayMs } from "../ui/combatTiming";
 import type { TowerPresentation } from "../ui/presentation";
 import { TowerArtwork } from "./TowerArtwork";
 import "./Combat.css";
-
-/** Brief silent beat after a counter lands, before the next round begins. */
-export const COMBAT_ROUND_PADDING_MS = 180;
 
 export function Combat({
   game,
@@ -21,64 +18,52 @@ export function Combat({
 }) {
   const dispatch = useGame((s) => s.dispatch);
   const combat = game.combat;
-  const [displayedWarriors, setDisplayedWarriors] = useState(
-    () => combat?.warriorsRemaining ?? 0
-  );
-  const [displayedBrigands, setDisplayedBrigands] = useState(
-    () => combat?.brigandsRemaining ?? 0
-  );
-  const [displayedRoundCount, setDisplayedRoundCount] = useState(
-    () => combat?.rounds.length ?? 0
-  );
+  const [resultReady, setResultReady] = useState(() => combat?.over ?? false);
   const observedRoundCount = useRef(combat?.rounds.length ?? 0);
 
-  // A resolved engine round starts its side-specific hit cue immediately. Hold
-  // the old score on screen until that complete cue has played, then animate
-  // only the side that was hit. Retreats have no round cue and update directly.
+  // The engine result, counter animation, and hit cue all begin on the same
+  // render. Only the final message waits, so it cannot cut off the last cue.
   useEffect(() => {
     if (!combat) return;
     const roundCount = combat.rounds.length;
-    if (roundCount <= observedRoundCount.current) {
-      setDisplayedWarriors(combat.warriorsRemaining);
-      setDisplayedBrigands(combat.brigandsRemaining);
-      setDisplayedRoundCount(roundCount);
+    const resolvedNewRound = roundCount > observedRoundCount.current;
+    observedRoundCount.current = Math.max(observedRoundCount.current, roundCount);
+
+    if (!combat.over) {
+      setResultReady(false);
       return;
     }
 
-    observedRoundCount.current = roundCount;
+    // Retreats do not generate a round cue and may settle immediately.
+    if (!resolvedNewRound) {
+      setResultReady(true);
+      return;
+    }
+
+    setResultReady(false);
     const lastRound = combat.rounds[roundCount - 1];
-    const cueSeconds = lastRound.playerWonRound
-      ? CLEAN_CUE_SECONDS.winRound
-      : CLEAN_CUE_SECONDS.loseRound;
-    const reveal = window.setTimeout(() => {
-      setDisplayedWarriors(combat.warriorsRemaining);
-      setDisplayedBrigands(combat.brigandsRemaining);
-      setDisplayedRoundCount(roundCount);
-    }, cueSeconds * 1000);
+    const reveal = window.setTimeout(
+      () => setResultReady(true),
+      Math.round(combatCueSeconds(lastRound) * 1000)
+    );
     return () => window.clearTimeout(reveal);
   }, [combat]);
 
-  // Let every monophonic cue finish. The counter then lands, holds for a short
-  // beat, and only then does the engine resolve the following round.
+  // Let every monophonic cue finish, hold its updated counter for a readable
+  // beat, and only then resolve the following round.
   useEffect(() => {
     if (!combat || combat.over) return;
     const forced = mustRetreat(combat, game.players.length);
     const lastRound = combat.rounds[combat.rounds.length - 1];
-    const cueSeconds = !lastRound
-      ? CLEAN_CUE_SECONDS.battle
-      : lastRound.playerWonRound
-        ? CLEAN_CUE_SECONDS.winRound
-        : CLEAN_CUE_SECONDS.loseRound;
     const t = setTimeout(() => {
       dispatch(forced ? { type: "COMBAT_RETREAT" } : { type: "COMBAT_ROUND" });
-    }, cueSeconds * 1000 + COMBAT_ROUND_PADDING_MS);
+    }, combatStepDelayMs(lastRound));
     return () => clearTimeout(t);
   }, [combat, game.players.length, dispatch]);
 
   if (!combat) return null;
   const isTower = combat.source === "tower";
   const last = combat.rounds[combat.rounds.length - 1];
-  const scoreSettled = displayedRoundCount >= combat.rounds.length;
   const displayFrame =
     isTower && combat.over && combat.playerWon
       ? towerArtFrame("victory-warriors-brigands", 0)
@@ -90,9 +75,9 @@ export function Combat({
       {presentation === "original" && <TowerArtwork frame={displayFrame} compact />}
 
       <div className="combat__scoreboard">
-        <Side label="Your Warriors" value={displayedWarriors} tint="var(--dt-gold)" />
+        <Side label="Your Warriors" value={combat.warriorsRemaining} tint="var(--dt-gold)" />
         <div className="combat__vs">VS</div>
-        <Side label="Brigands" value={displayedBrigands} tint="var(--dt-led)" />
+        <Side label="Brigands" value={combat.brigandsRemaining} tint="var(--dt-led)" />
       </div>
 
       <AnimatePresence mode="wait">
@@ -109,7 +94,7 @@ export function Combat({
         )}
       </AnimatePresence>
 
-      {!combat.over || !scoreSettled ? (
+      {!combat.over || !resultReady ? (
         <div className="combat__actions">
           <span className="combat__fighting">
             {combat.over ? "Resolving…" : "⚔ Fighting…"}

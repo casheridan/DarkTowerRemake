@@ -58,6 +58,8 @@ function makePlayer(id: number, name: string, home: Player["home"], difficulty: 
     },
     alive: true,
     won: false,
+    turnsTaken: 0,
+    score: null,
   };
 }
 
@@ -94,11 +96,14 @@ export function createGame(config: GameConfig, rng: Rng): GameState {
     keyRiddleOrder,
     towerBrigands,
     dragonHoard: { ...DRAGON_TREASURE },
+    dragonPosition: null,
+    dragonPlacement: null,
     winnerId: null,
     towerStage: null,
     riddleStep: 0,
     combat: null,
     bazaar: null,
+    wizardSelection: null,
     log: [],
     lastEvent: null,
   };

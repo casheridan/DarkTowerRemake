@@ -41,14 +41,29 @@ export function Board({ game }: { game: GameState }) {
 
   const active = game.players[game.currentPlayerIndex];
   const canAct = game.phase === "playing";
-  const reachable = new Set(canAct && !pegasusMode ? neighborsOf(active.position) : []);
+  const placingDragon = game.phase === "dragonPlacement";
+  const dragonTargets = new Set(game.dragonPlacement?.candidateIds ?? []);
+  const reachable = new Set(
+    canAct && !pegasusMode
+      ? neighborsOf(active.position).filter((id) => id !== game.dragonPosition)
+      : []
+  );
   const flightReachable = new Set(
-    canAct && pegasusMode ? pegasusDestinations(active) : []
+    canAct && pegasusMode
+      ? pegasusDestinations(active).filter((id) => id !== game.dragonPosition)
+      : []
   );
   const allKeys = hasAllKeys(active);
   const towerReady = canAct && !pegasusMode && allKeys && isTowerAdjacent(active.position);
+  const dragonTerritory = game.dragonPosition
+    ? BOARD.territories[game.dragonPosition]
+    : null;
 
   const clickTerritory = (id: string) => {
+    if (placingDragon) {
+      if (dragonTargets.has(id)) dispatch({ type: "DRAGON_PLACE", to: id });
+      return;
+    }
     if (!canAct) return;
     if (pegasusMode) {
       if (!flightReachable.has(id)) {
@@ -107,6 +122,8 @@ export function Board({ game }: { game: GameState }) {
             const isHere = active.position === id;
             const canGo = reachable.has(id);
             const canFly = flightReachable.has(id);
+            const canPlaceDragon = dragonTargets.has(id);
+            const dragonHere = game.dragonPosition === id;
             return (
               <path
                 key={id}
@@ -116,6 +133,8 @@ export function Board({ game }: { game: GameState }) {
                   isHere ? "terr--here" : "",
                   canGo ? "terr--reach" : "",
                   canFly ? "terr--flight" : "",
+                  canPlaceDragon ? "terr--dragon-target" : "",
+                  dragonHere ? "terr--dragon-blocked" : "",
                   selected === id ? "terr--selected" : "",
                   t.building ? "terr--bld" : "",
                   t.lane ? "terr--lane" : "",
@@ -137,6 +156,19 @@ export function Board({ game }: { game: GameState }) {
             );
           })}
         </g>
+
+        {dragonTerritory && (
+          <motion.g
+            className="board__dragon"
+            initial={false}
+            animate={{ x: dragonTerritory.cx, y: dragonTerritory.cy - 5 }}
+            transition={{ type: "spring", stiffness: 180, damping: 22 }}
+            aria-label="Dragon-blocked territory"
+          >
+            <circle r={15} className="board__dragon-disc" />
+            <text textAnchor="middle" y={6} className="board__dragon-icon">🐉</text>
+          </motion.g>
+        )}
 
         {KINGDOM_ORDER.map((k) => {
           const cells = BOARD.order.filter(

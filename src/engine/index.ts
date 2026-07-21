@@ -5,6 +5,8 @@ export * from "./board";
 export * from "./rng";
 export * from "./economy";
 export * from "./encounters";
+export * from "./dragon";
+export * from "./score";
 export * from "./sanctuary";
 export * from "./bazaar";
 export * from "./tomb";

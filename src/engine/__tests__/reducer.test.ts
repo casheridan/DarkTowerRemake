@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createGame } from "../setup";
 import { reduce } from "../reducer";
 import { createRng } from "../rng";
+import { calculateScore } from "../score";
 import { BOARD, buildingOf, citadelId, isLane, isTowerAdjacent, kingdomOf, neighborsOf } from "../board";
 import type { GameState } from "../types";
 import { scriptedRng } from "./helpers";
@@ -99,6 +100,7 @@ describe("item mechanics at end of turn", () => {
     s = reduce(s, { type: "ACK_EVENT" }, scriptedRng([0]));
     expect(s.currentPlayerIndex).toBe(0); // no advance — same player goes again
     expect(s.turn).toBe(1);
+    expect(s.players[0].turnsTaken).toBe(0);
     expect(s.phase).toBe("playing");
   });
 
@@ -182,6 +184,70 @@ describe("item mechanics at end of turn", () => {
   });
 });
 
+describe("Dragon board blocker", () => {
+  const plainTerritories = () =>
+    BOARD.order.filter((id) => {
+      const territory = BOARD.territories[id];
+      return (
+        !territory.lane &&
+        !territory.building &&
+        !territory.darkTowerRegion &&
+        territory.polygon.length > 0
+      );
+    });
+
+  it("requires the attacked player to place the Dragon on an empty normal territory", () => {
+    let s = twoPlayerGame();
+    s = reduce(s, { type: "MOVE_TO", to: STEP }, scriptedRng([3]));
+
+    expect(s.phase).toBe("dragonPlacement");
+    expect(s.dragonPlacement?.candidateIds.length).toBeGreaterThan(0);
+    expect(s.players[0].gold).toBe(23);
+    expect(s.players[0].warriors).toBe(8);
+    expect(s.dragonPlacement?.candidateIds).not.toContain(s.players[0].position);
+    expect(s.dragonPlacement?.candidateIds.every((id) => !buildingOf(id))).toBe(true);
+
+    const destination = s.dragonPlacement!.candidateIds[0];
+    s = reduce(s, { type: "DRAGON_PLACE", to: destination }, createRng(1));
+    expect(s.phase).toBe("encounter");
+    expect(s.dragonPosition).toBe(destination);
+    expect(s.dragonPlacement).toBeNull();
+  });
+
+  it("rejects illegal placement and relocates rather than duplicating the Dragon", () => {
+    const [oldPosition] = plainTerritories();
+    let s: GameState = {
+      ...twoPlayerGame(),
+      phase: "dragonPlacement",
+      dragonPosition: oldPosition,
+      dragonPlacement: { candidateIds: plainTerritories().slice(1, 3) },
+    };
+
+    expect(reduce(s, { type: "DRAGON_PLACE", to: oldPosition }, createRng(1))).toBe(s);
+    const nextPosition = s.dragonPlacement!.candidateIds[0];
+    s = reduce(s, { type: "DRAGON_PLACE", to: nextPosition }, createRng(1));
+    expect(s.dragonPosition).toBe(nextPosition);
+  });
+
+  it("blocks both ordinary movement and Pegasus flight", () => {
+    const blockedMove: GameState = { ...twoPlayerGame(), dragonPosition: STEP };
+    expect(reduce(blockedMove, { type: "MOVE_TO", to: STEP }, scriptedRng([12]))).toBe(
+      blockedMove
+    );
+
+    const flightTarget = plainTerritories().find(
+      (id) => kingdomOf(id) === "arisilon" && id !== START
+    )!;
+    const blockedFlight = withActive(
+      { ...twoPlayerGame(), dragonPosition: flightTarget },
+      { inventory: new Set(["pegasus"]) }
+    );
+    expect(
+      reduce(blockedFlight, { type: "PEGASUS_FLY", to: flightTarget }, createRng(1))
+    ).toBe(blockedFlight);
+  });
+});
+
 describe("reducer turn lifecycle", () => {
   it("MOVE_TO a safe space sets the encounter phase and surfaces lastEvent", () => {
     const s0 = twoPlayerGame();
@@ -205,6 +271,7 @@ describe("reducer turn lifecycle", () => {
     expect(s2.phase).toBe("playing");
     expect(s2.currentPlayerIndex).toBe(1);
     expect(s2.players[0].food).toBe(24); // 10 warriors eat 1: 25 -> 24
+    expect(s2.players[0].turnsTaken).toBe(1);
   });
 
   it("wrapping back to the first player increments the turn counter", () => {
@@ -244,6 +311,7 @@ describe("reducer turn lifecycle", () => {
     expect(s.winnerId).toBeNull();
     expect(s.players[0].warriors).toBe(0);
     expect(s.players[0].alive).toBe(false);
+    expect(s.players[0].score).toBe(0);
     expect(s.lastEvent?.playerDied).toBe(true);
   });
 
@@ -263,6 +331,33 @@ describe("reducer turn lifecycle", () => {
     expect(s.phase).toBe("gameOver");
     expect(s.players[0].alive).toBe(false);
     expect(s.players[0].warriors).toBe(0);
+  });
+
+  it("records the ROM-derived score when Tower combat is won", () => {
+    let s = withActive(twoPlayerGame(), { turnsTaken: 8, warriors: 12 });
+    s = {
+      ...s,
+      towerBrigands: 32,
+      phase: "combat",
+      combat: {
+        source: "tower",
+        brigands: 32,
+        brigandsRemaining: 0,
+        warriorsAtStart: 12,
+        warriorsRemaining: 7,
+        rounds: [],
+        over: true,
+        playerWon: true,
+      },
+    };
+
+    s = reduce(s, { type: "COMBAT_END" }, createRng(1));
+
+    expect(s.phase).toBe("gameOver");
+    expect(s.winnerId).toBe(0);
+    expect(s.players[0].score).toBe(
+      calculateScore({ towerBrigands: 32, turnsTaken: 8, warriorsAtTower: 12 })
+    );
   });
 
   it("ends a single-player game when starvation takes the last warrior", () => {
@@ -311,7 +406,7 @@ describe("reducer turn lifecycle", () => {
     expect(s.lastEvent?.messages.join(" ")).toMatch(/treasure/i);
   });
 
-  it("applies the Wizard's stolen resources and lost-turn curse", () => {
+  it("lets the player confirm a Wizard target before applying the curse", () => {
     const spot = squareBeside("ruin");
     let s = standOn(twoPlayerGame(), spot.from);
     s = reduce(
@@ -320,12 +415,51 @@ describe("reducer turn lifecycle", () => {
       scriptedRng([12, 14])
     );
 
+    expect(s.phase).toBe("wizard");
+    expect(s.wizardSelection?.candidateIds).toEqual([1]);
+    expect(s.players[0].warriors).toBe(10);
+    expect(s.players[0].gold).toBe(43); // treasure is awarded before target confirmation
+    expect(s.players[1].flags.cursed).toBe(false);
+
+    s = reduce(s, { type: "WIZARD_CONFIRM" }, createRng(1));
+    expect(s.phase).toBe("encounter");
+    expect(s.wizardSelection).toBeNull();
     expect(s.players[0].warriors).toBe(12);
-    expect(s.players[0].gold).toBe(50); // +13 treasure, then +7 stolen
+    expect(s.players[0].gold).toBe(50);
     expect(s.players[1].warriors).toBe(8);
     expect(s.players[1].gold).toBe(23);
     expect(s.players[1].flags.cursed).toBe(true);
     expect(s.lastEvent?.messages.join(" ")).toMatch(/steal 2 warriors and 7 gold/i);
+  });
+
+  it("cycles every rival in player order and curses only the confirmed target", () => {
+    const spot = squareBeside("ruin");
+    let s = createGame(
+      { players: [{ name: "Ann" }, { name: "Bo" }, { name: "Cy" }], difficulty: 1 },
+      createRng(1)
+    );
+    s = standOn(s, spot.from);
+    s = reduce(s, { type: "VISIT_TOMB", to: spot.building }, scriptedRng([12, 14]));
+
+    expect(s.wizardSelection).toEqual({ candidateIds: [1, 2], index: 0 });
+    s = reduce(s, { type: "WIZARD_NEXT" }, createRng(1));
+    expect(s.wizardSelection?.index).toBe(1);
+    s = reduce(s, { type: "WIZARD_CONFIRM" }, createRng(1));
+
+    expect(s.players[1].flags.cursed).toBe(false);
+    expect(s.players[2].flags.cursed).toBe(true);
+  });
+
+  it("can release a Wizard without rolling back the tomb treasure", () => {
+    const spot = squareBeside("ruin");
+    let s = standOn(twoPlayerGame(), spot.from);
+    s = reduce(s, { type: "VISIT_TOMB", to: spot.building }, scriptedRng([12, 14]));
+    s = reduce(s, { type: "WIZARD_CANCEL" }, createRng(1));
+
+    expect(s.phase).toBe("encounter");
+    expect(s.players[0].gold).toBe(43);
+    expect(s.players[1].flags.cursed).toBe(false);
+    expect(s.lastEvent?.messages.join(" ")).toMatch(/release the Wizard/i);
   });
 
   it("entering a bazaar from an adjacent square travels there, then opens the shop", () => {

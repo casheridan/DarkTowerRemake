@@ -57,10 +57,15 @@ export function GameOver({
             <p className="over__sub">The quest ends with a score of 00.</p>
           </>
         ) : (
-          <p className="over__sub">
-            The evil is vanquished and the realm is saved after {game.turn}{" "}
-            {game.turn === 1 ? "turn" : "turns"}.
-          </p>
+          <>
+            <div className="over__score" aria-label={`Final score ${winner?.score ?? 0}`}>
+              {String(winner?.score ?? 0).padStart(2, "0")}
+            </div>
+            <p className="over__sub">
+              Final score · {winner?.turnsTaken ?? 0} completed{" "}
+              {winner?.turnsTaken === 1 ? "turn" : "turns"}
+            </p>
+          </>
         )}
         <button className="over__again" onClick={newGameQuit}>
           New Quest

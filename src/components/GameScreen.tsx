@@ -8,6 +8,8 @@ import { DarkTower } from "./DarkTower";
 import { GameOver } from "./GameOver";
 import { TurnBanner } from "./TurnBanner";
 import { TombSequence } from "./TombSequence";
+import { WizardSelection } from "./WizardSelection";
+import { DragonPlacement } from "./DragonPlacement";
 import { useSfx } from "../audio/useSfx";
 import { preloadOriginalAudio } from "../audio/sfx";
 import { preloadTowerArtwork } from "../ui/towerArt";
@@ -74,6 +76,10 @@ export function GameScreen() {
 
   const towerPanel = game.phase === "combat" ? (
     <Combat game={game} presentation={effectivePresentation} />
+  ) : game.phase === "dragonPlacement" ? (
+    <DragonPlacement game={game} presentation={effectivePresentation} />
+  ) : game.phase === "wizard" ? (
+    <WizardSelection game={game} presentation={effectivePresentation} />
   ) : game.phase === "darkTower" ? (
     <DarkTower game={game} presentation={effectivePresentation} />
   ) : (

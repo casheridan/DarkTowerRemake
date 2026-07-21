@@ -83,7 +83,7 @@ export function useSfx(game: GameState | null, settings: Settings) {
       if (!target) return;
       const button = target.closest("button");
       const territory = target.closest(
-        ".terr--reach, .terr--flight, .board__tower-group--ready"
+        ".terr--reach, .terr--flight, .terr--dragon-target, .board__tower-group--ready"
       );
       if (!button && !territory) return;
       if (button && (button as HTMLButtonElement).disabled) return;
